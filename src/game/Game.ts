@@ -236,6 +236,7 @@ export class Game {
 
   abort(): SessionResult {
     const r = this.buildResult(false);
+    r.aborted = true;
     this.phase = 'ended';
     return r;
   }
@@ -887,6 +888,7 @@ export class Game {
       weakFacts: outcomes.filter((o) => o.wrong > 0).map((o) => o.factId),
       newlyMastered,
       perfect,
+      aborted: false,
     };
   }
 }

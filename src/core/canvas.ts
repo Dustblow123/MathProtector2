@@ -23,12 +23,20 @@ export class GameCanvas {
     this.ctx = ctx;
     window.addEventListener('resize', this.onResize);
     this.resize();
+    // Le parent n'est pas forcément encore dans le DOM : on recalcule à la frame suivante.
+    requestAnimationFrame(this.onResize);
+    if (typeof ResizeObserver !== 'undefined' && parent) {
+      this.observer = new ResizeObserver(this.onResize);
+      this.observer.observe(parent);
+    }
   }
 
+  private observer: ResizeObserver | null = null;
+
   resize(): void {
-    const rect = this.el.parentElement?.getBoundingClientRect() ?? { width: WORLD_W, height: WORLD_H };
-    const w = Math.max(320, rect.width);
-    const h = Math.max(240, rect.height);
+    const rect = this.el.parentElement?.getBoundingClientRect();
+    const w = Math.max(320, rect && rect.width > 0 ? rect.width : window.innerWidth);
+    const h = Math.max(240, rect && rect.height > 0 ? rect.height : window.innerHeight);
     this.dpr = Math.min(2, window.devicePixelRatio || 1);
     this.el.width = Math.round(w * this.dpr);
     this.el.height = Math.round(h * this.dpr);
@@ -63,6 +71,7 @@ export class GameCanvas {
 
   destroy(): void {
     window.removeEventListener('resize', this.onResize);
+    this.observer?.disconnect();
     this.el.remove();
   }
 }

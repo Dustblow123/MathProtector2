@@ -1,0 +1,10 @@
+import { chromium } from '@playwright/test';
+const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
+const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+page.on('pageerror', (e) => console.log('PAGEERROR', e.message, e.stack));
+page.on('console', (m) => console.log(m.type(), m.text()));
+page.on('requestfailed', (r) => console.log('REQFAIL', r.url(), r.failure()?.errorText));
+await page.goto('http://localhost:4173/MathProtector2/');
+await page.waitForTimeout(1500);
+console.log('HTML', (await page.content()).slice(0, 1500));
+await browser.close();

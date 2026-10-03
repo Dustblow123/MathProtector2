@@ -128,6 +128,8 @@ export interface SessionResult {
   /** Faits passés au niveau "maîtrisé" pendant la session. */
   newlyMastered: FactId[];
   perfect: boolean;
+  /** Partie interrompue par le joueur. */
+  aborted: boolean;
 }
 
 export type HintKind = 'neighbor-down' | 'neighbor-up' | 'commute' | 'double' | 'repeat';

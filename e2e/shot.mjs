@@ -1,0 +1,31 @@
+import { chromium } from '@playwright/test';
+const out = process.argv[2] ?? '/tmp/shots';
+const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', args: ['--autoplay-policy=no-user-gesture-required'] });
+const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+const errors = [];
+page.on('pageerror', (e) => errors.push('PAGEERROR ' + e.message));
+page.on('console', (m) => { if (m.type() === 'error' || m.type() === 'warning') errors.push(m.type() + ': ' + m.text()); });
+await page.goto('http://localhost:4173/MathProtector2/');
+await page.waitForTimeout(600);
+await page.screenshot({ path: `${out}/01-profiles.png` });
+// Create profile
+await page.click('.profile-card');
+await page.waitForTimeout(300);
+await page.fill('.modal input[type=text]', 'Léa');
+await page.click('.modal .btn-primary');
+await page.waitForTimeout(600);
+await page.screenshot({ path: `${out}/02-menu.png` });
+await page.click('.menu-card.big');
+await page.waitForTimeout(500);
+await page.screenshot({ path: `${out}/03-campaign.png` });
+await page.click('.sector.current');
+await page.waitForTimeout(500);
+await page.screenshot({ path: `${out}/04-tutorial.png` });
+await page.click('.tutorial .btn');
+await page.waitForTimeout(2500);
+await page.screenshot({ path: `${out}/05-game-start.png` });
+// Play: read targets via window.mp2? Not exposed; simulate typing by reading canvas? We expose game via debug hook later.
+await page.waitForTimeout(4000);
+await page.screenshot({ path: `${out}/06-game-asteroids.png` });
+console.log(JSON.stringify(errors, null, 1));
+await browser.close();
