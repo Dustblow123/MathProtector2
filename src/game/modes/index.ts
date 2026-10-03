@@ -40,7 +40,7 @@ function base(id: ModeId, input: ModeInput): ModeConfig {
     timeBonusMs: 0,
     bosses: [],
     bossTables: [],
-    hintsAlways: false,
+    freeHelp: false,
     powerups: true,
     seed: input.seed ?? (Math.random() * 2 ** 32) >>> 0,
     reinjectErrors: true,
@@ -98,7 +98,7 @@ export function blitzMode(input: ModeInput): ModeConfig {
 export function practiceMode(input: ModeInput): ModeConfig {
   const m = base('practice', input);
   m.earthHp = 0;
-  m.hintsAlways = true;
+  m.freeHelp = true;
   m.flow = { initial: 0.1, min: 0, max: 0.5 };
   m.powerups = false;
   m.asteroidsPerWave = 10;

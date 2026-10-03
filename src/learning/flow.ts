@@ -90,9 +90,6 @@ export function flowParams(intensity: number): FlowParams {
   };
 }
 
-export function hintDelayMs(fluentMs: number): number {
-  return fluentMs * 1.5;
-}
 
 function clamp(x: number, lo: number, hi: number): number {
   return x < lo ? lo : x > hi ? hi : x;

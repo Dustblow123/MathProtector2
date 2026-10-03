@@ -9,7 +9,7 @@ Jeu web d'apprentissage des tables de multiplication : des astéroïdes portant 
 - **Équipement à effet** : six projectiles (trait, missile sinueux, givre, double tir, onde de choc, éclair à rebond) et huit canons avec un bonus chacun (+1 bouclier, projectiles plus rapides, indices plus tôt, plus de cristaux…).
 - **Progression** : XP et niveaux, étoiles, succès, poussière d'étoiles, Hangar de cosmétiques (traînées, explosions, planètes, nébuleuses, réticules).
 - **Révision du jour** : le menu compte les faits dont la rétention estimée est passée sous 90 % et propose une session courte qui les sert en priorité. **Mini-drill** de 5 questions flash sur les faits ratés après chaque partie. **Calibrage automatique** du seuil de rapidité sur les temps de réponse réels (désactivable dans l'espace parent).
-- **Indices** texte et/ou visuels (grille de points, ligne numérique), lecture vocale optionnelle (Web Speech). **Accessibilité** : police Lexend, grand texte, palette daltonisme, contraste élevé.
+- **Cartes de méthode** à la demande (touche H ou bouton « ? ») : le jeu se fige 10 s et une carte montre une vraie stratégie de calcul (×9 = ×10 − a, ×6 = ×5 + a, double du double, fait voisin connu…) avec un visuel de décomposition. Coût : combo remis à zéro et pas de bonus de vitesse (gratuit en Entraînement). Lecture vocale optionnelle (Web Speech). **Accessibilité** : police Lexend, grand texte, palette daltonisme, contraste élevé.
 - **Événements de vague** (pluie de météores, poussière ×2, ruée vers les cristaux, ère glaciaire, boss surprise) et **défi de la semaine** seedé avec boss tiré au sort.
 - **Multi-profils** + espace parent (grille de maîtrise 10×10, stats, confusions, tables prioritaires, export/import JSON).
 - Interface FR/EN, clavier ou pavé numérique tactile, audio procédural (aucun fichier son), PWA installable.
@@ -38,6 +38,7 @@ node e2e/mobile.mjs /tmp/shots   # portrait tactile avec pavé numérique
 node e2e/v2.mjs /tmp/shots       # campagne libre, projectiles, patrouille, hangar
 node e2e/v3.mjs /tmp/shots       # révision du jour, mini-drill, défi hebdo, accessibilité
 node e2e/mobile3.mjs /tmp/shots  # HUD portrait et paysage
+node e2e/help.mjs /tmp/shots     # carte de méthode : gel, coût, fermeture automatique
 ```
 
 ## Commandes en jeu
@@ -49,6 +50,7 @@ node e2e/mobile3.mjs /tmp/shots  # HUD portrait et paysage
 | Retour arrière | Effacer |
 | Tab ou clic/tap sur un astéroïde | Changer de cible |
 | F1 / F2 / F3 | Utiliser un powerup |
+| H ou ? | Carte de méthode (fige le jeu) |
 | Échap | Pause |
 
 ## Structure

@@ -8,7 +8,9 @@ import { classifyError } from '../../learning/confusions';
 import { commuted, parseFactId } from '../../learning/facts';
 import { recordAnswer, recordCommutedCredit } from '../../learning/model';
 import type { Fact } from '../../learning/types';
-import { drawVisualHint } from '../../render/hints';
+import { chooseStrategy } from '../../learning/strategies';
+import { drawStrategyVisual } from '../../render/strategyVisual';
+import { strategyLines } from '../../ui/strategyText';
 import { button, clear, h } from '../../ui/dom';
 import { createNumpad } from '../../ui/numpad';
 import type { App, ResultsParams, ScreenResult } from '../App';
@@ -61,9 +63,10 @@ export function renderDrill(app: App, params: ResultsParams): ScreenResult {
   const feedback = h('div', { class: 'drill-feedback' });
   const bar = h('i', { style: 'width:100%' });
   const progress = h('div', { class: 'drill-progress' });
-  const hintCanvas = h('canvas', { width: 220, height: 150, class: 'drill-hint' }) as HTMLCanvasElement;
+  const hintCanvas = h('canvas', { width: 320, height: 170, class: 'drill-hint' }) as HTMLCanvasElement;
   hintCanvas.style.display = 'none';
-  card.append(progress, question, answer, h('div', { class: 'progress drill-timer' }, bar), feedback, hintCanvas);
+  const stepsEl = h('div', { class: 'drill-steps' });
+  card.append(progress, question, answer, h('div', { class: 'progress drill-timer' }, bar), feedback, stepsEl, hintCanvas);
 
   const input = new Input();
   const digit = (d: number) => {
@@ -108,6 +111,7 @@ export function renderDrill(app: App, params: ResultsParams): ScreenResult {
     feedback.textContent = '';
     feedback.className = 'drill-feedback';
     hintCanvas.style.display = 'none';
+    clear(stepsEl);
     question.textContent = `${f.a} × ${f.b} = ?`;
     progress.textContent = `${index + 1} / ${queue.length}`;
     shownAt = performance.now();
@@ -145,17 +149,14 @@ export function renderDrill(app: App, params: ResultsParams): ScreenResult {
       feedback.className = 'drill-feedback bad';
       audio.miss();
       speech.answer(f);
-      if (app.settings.hintStyle !== 'text') {
-        hintCanvas.style.display = '';
-        const ctx = hintCanvas.getContext('2d');
-        if (ctx) {
-          ctx.clearRect(0, 0, hintCanvas.width, hintCanvas.height);
-          drawVisualHint(ctx, f, hintCanvas.width / 2, hintCanvas.height / 2, hintCanvas.width - 20, hintCanvas.height - 20);
-        }
-      }
+      const strategy = chooseStrategy(f, facts, p.maxTable);
+      for (const line of strategyLines(strategy)) stepsEl.appendChild(h('div', null, line));
+      hintCanvas.style.display = '';
+      const ctx = hintCanvas.getContext('2d');
+      if (ctx) drawStrategyVisual(ctx, strategy, hintCanvas.width, hintCanvas.height);
     }
     index++;
-    setTimeout(show, correct ? 900 : 2600);
+    setTimeout(show, correct ? 900 : 4200);
   };
 
   const pad = createNumpad({ onDigit: digit, onBackspace: backspace, onConfirm: confirm }, { hidden: !app.usesTouch(), confirmLabel: 'OK' });

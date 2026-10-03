@@ -65,15 +65,17 @@ describe('Game (simulation headless)', () => {
     expect(ms).toBeLessThan(200_000);
   });
 
-  it('le mode Entraînement est invulnérable et donne des indices', () => {
+  it("le mode Entraînement est invulnérable et l'aide y est gratuite", () => {
     const game = new Game(practiceMode({ maxTable: 10, fluentMs: 4000, tables: [7], seed: 4 }), new Map());
-    let hints = 0;
-    game.events.on('hint', () => hints++);
     game.start();
     for (let i = 0; i < 60 * 90; i++) game.update(STEP);
     expect(game.earth.hp).toBe(game.earth.maxHp);
-    expect(hints).toBeGreaterThan(0);
     expect(game.phase).not.toBe('ended');
+    game.combo = 7;
+    expect(game.requestHelp(0)).toBe(true);
+    expect(game.combo).toBe(7);
+    expect(game.focus?.helped).toBe(false);
+    game.closeHelp();
   });
 
   it('le mode Survie continue indéfiniment et monte en intensité', () => {

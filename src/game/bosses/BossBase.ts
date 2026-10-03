@@ -83,6 +83,7 @@ export abstract class BossBase {
       deadline: opts.deadline ?? 0,
       hidden: false,
       twinId: -1,
+      helped: false,
     };
     return t;
   }

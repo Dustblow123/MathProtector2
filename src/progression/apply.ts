@@ -96,6 +96,7 @@ export function applySession(p: Profile, result: SessionResult, facts: Map<FactI
   day.timeMs += result.durationMs;
   for (const [k, v] of Object.entries(confusions)) st.confusions[k] = (st.confusions[k] ?? 0) + v;
   st.recentRts = pushRts(st.recentRts, result.correctRts);
+  st.helps += result.helps;
   if (result.modeId === 'review' && result.reviewed > 0) {
     st.reviewSessions++;
     if (st.lastReviewDay !== today) {

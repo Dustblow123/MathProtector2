@@ -17,6 +17,8 @@ export interface Target {
   spawnTime: number;
   alive: boolean;
   type: 'asteroid' | 'boss';
+  /** Carte de méthode consultée pour cette cible. */
+  helped: boolean;
 }
 
 export interface Asteroid extends Target {
@@ -29,7 +31,6 @@ export interface Asteroid extends Target {
   shapeSeed: number;
   /** 0 = astéroïde initial, 1 = issu d'une scission. */
   generation: number;
-  hinted: boolean;
   /** Échelle d'apparition (0 → 1). */
   scale: number;
   /** Ralenti (projectile givrant) jusqu'à ce temps de jeu (ms). */
@@ -110,7 +111,8 @@ export interface ModeConfig {
   bosses: BossKind[];
   /** Table utilisée par chaque boss (alignée sur `bosses`). */
   bossTables: number[];
-  hintsAlways: boolean;
+  /** Aide gratuite (pas de remise à zéro du combo ni de pénalité) : Entraînement. */
+  freeHelp: boolean;
   powerups: boolean;
   seed: number;
   reinjectErrors: boolean;
@@ -168,13 +170,7 @@ export interface SessionResult {
   correctRts: number[];
   /** Faits prioritaires (révision) résolus correctement. */
   reviewed: number;
+  /** Cartes de méthode consultées. */
+  helps: number;
 }
 
-export type HintKind = 'neighbor-down' | 'neighbor-up' | 'commute' | 'double' | 'repeat' | 'identity' | 'twice';
-
-export interface HintData {
-  fact: Fact;
-  kind: HintKind;
-  /** Fait d'appui (voisin ou commuté). */
-  support?: Fact;
-}

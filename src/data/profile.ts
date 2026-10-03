@@ -72,6 +72,8 @@ export interface Profile {
     lastReviewDay: string;
     /** Réponses du mini-drill. */
     drillAnswers: number;
+    /** Cartes de méthode consultées. */
+    helps: number;
   };
 }
 
@@ -102,7 +104,7 @@ export function createProfile(name: string, avatar: string, agePreset: AgePreset
     reviewDoneDay: '',
     autoFluent: true,
     focusTables: [],
-    stats: { sessions: 0, destroyed: 0, correct: 0, fluent: 0, errors: 0, timeMs: 0, lastPlayedDay: '', streakDays: 0, confusions: {}, days: [], recentRts: [], reviewSessions: 0, reviewStreak: 0, lastReviewDay: '', drillAnswers: 0 },
+    stats: { sessions: 0, destroyed: 0, correct: 0, fluent: 0, errors: 0, timeMs: 0, lastPlayedDay: '', streakDays: 0, confusions: {}, days: [], recentRts: [], reviewSessions: 0, reviewStreak: 0, lastReviewDay: '', drillAnswers: 0, helps: 0 },
   };
 }
 

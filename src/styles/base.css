@@ -325,3 +325,20 @@ html[data-large="1"] .hud-score { font-size: clamp(22px, 3.4vw, 32px); }
 }
 .menu-card.review-due { border-color: var(--gold); box-shadow: 0 0 22px rgba(255, 209, 102, 0.3); }
 .menu-card.review-due .title::after { content: ' •'; color: var(--gold); }
+
+/* ----- v4 : carte de méthode */
+.help-btn { font-family: var(--font-title); font-weight: 900; color: var(--gold); border-color: rgba(255, 209, 102, 0.5); }
+.help-btn.dim { opacity: 0.35; }
+.help-overlay { background: rgba(5, 8, 26, 0.35); backdrop-filter: none; }
+.help-card { min-width: min(560px, 94vw); max-width: 94vw; gap: 12px; border-color: var(--gold); box-shadow: 0 0 40px rgba(255, 209, 102, 0.25); animation: help-pop 0.3s var(--ease); }
+@keyframes help-pop { from { transform: scale(0.85); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+.help-head { display: flex; align-items: center; gap: 12px; justify-content: center; }
+.help-head h2 { font-size: clamp(18px, 3vw, 24px); }
+.help-ring { width: 40px; height: 40px; transform: rotate(-90deg); }
+.help-ring circle { fill: none; stroke: var(--gold); stroke-width: 4; stroke-dasharray: 100; stroke-dashoffset: 0; transition: stroke-dashoffset 0.2s linear; }
+.help-steps { display: flex; flex-direction: column; gap: 6px; }
+.help-step { font-size: clamp(28px, 5vw, 42px); font-weight: 900; color: #fff; text-shadow: var(--glow-cyan); animation: screen-in 0.4s var(--ease) both; }
+.help-visual { display: block; margin: 0 auto; width: min(360px, 90vw); height: auto; background: rgba(5, 8, 26, 0.6); border-radius: 12px; }
+.drill-steps { display: flex; flex-direction: column; gap: 4px; font-size: 26px; font-weight: 900; color: #fff; }
+html[data-large="1"] .help-step { font-size: clamp(32px, 6vw, 48px); }
+@media (max-width: 600px) and (orientation: portrait) { .help-step { font-size: 26px; } .help-card { padding: 14px; } }

@@ -2,8 +2,9 @@ import { WORLD_H, WORLD_W } from '../core/canvas';
 import { Emitter } from '../core/events';
 import { clamp, dist } from '../core/math';
 import { Rng } from '../core/rng';
-import { FlowController, hintDelayMs } from '../learning/flow';
-import { commuted, makeFact } from '../learning/facts';
+import { FlowController } from '../learning/flow';
+import { chooseStrategy, type Strategy } from '../learning/strategies';
+import { makeFact } from '../learning/facts';
 import { masteryLevel } from '../learning/model';
 import { Scheduler, type ResultReport } from '../learning/scheduler';
 import type { Fact, FactId, FactState } from '../learning/types';
@@ -18,7 +19,6 @@ import {
   type BossKind,
   type BossTarget,
   type FactOutcome,
-  type HintData,
   type Loadout,
   type ModeConfig,
   type PowerupType,
@@ -52,7 +52,10 @@ export type GameEvents = {
   powerupGained: { type: PowerupType };
   powerupUsed: { type: PowerupType };
   powerupFull: { type: PowerupType };
-  hint: { target: Target; hint: HintData };
+  /** Carte de méthode ouverte / fermée / refusée (boss Fantôme). */
+  help: { target: Target; strategy: Strategy };
+  helpClosed: { target: Target };
+  helpRefused: void;
   gameOver: SessionResult;
   victory: SessionResult;
   split: { parent: Asteroid; children: Asteroid[] };
@@ -74,7 +77,7 @@ export interface SpawnOptions {
   generation?: number;
 }
 
-export type GamePhase = 'intro' | 'playing' | 'intermission' | 'boss' | 'paused' | 'ended';
+export type GamePhase = 'intro' | 'playing' | 'intermission' | 'boss' | 'paused' | 'help' | 'ended';
 
 /**
  * Simulation complète d'une partie, indépendante du rendu et du DOM.
@@ -119,7 +122,7 @@ export class Game {
   private idCounter = 1;
   private introTimer = 1500;
 
-  private stats = { destroyed: 0, answered: 0, errors: 0, hits: 0, fluent: 0, rtSum: 0, waves: 0, powerupKills: 0, reviewed: 0 };
+  private stats = { destroyed: 0, answered: 0, errors: 0, hits: 0, fluent: 0, rtSum: 0, waves: 0, powerupKills: 0, reviewed: 0, helps: 0 };
   private correctRts: number[] = [];
   private readonly prioritySet: Set<FactId>;
   /** Événement de la vague courante, null sinon. */
@@ -254,6 +257,7 @@ export class Game {
   }
 
   pause(): void {
+    if (this.phase === 'help') this.closeHelp();
     if (this.phase === 'ended' || this.phase === 'paused') return;
     this.prePausePhase = this.phase;
     this.phase = 'paused';
@@ -271,6 +275,48 @@ export class Game {
     else this.pause();
   }
 
+  // ---------------------------------------------------------------- carte de méthode (aide à la demande)
+
+  help: { target: Target; strategy: Strategy; startedAt: number } | null = null;
+  private preHelpPhase: GamePhase = 'playing';
+
+  get helpAvailable(): boolean {
+    return (this.phase === 'playing' || this.phase === 'boss') && this.focus !== null && this.boss?.kind !== 'phantom';
+  }
+
+  /** Ouvre la carte de méthode pour la cible focus : le temps se fige, le combo tombe (sauf aide gratuite). */
+  requestHelp(now = Date.now()): boolean {
+    if (this.phase === 'help') return true;
+    if (!this.helpAvailable) {
+      if (this.boss?.kind === 'phantom') this.events.emit('helpRefused', undefined);
+      return false;
+    }
+    const target = this.focus as Target;
+    const strategy = chooseStrategy(target.fact, this.scheduler.states, this.mode.maxTable);
+    this.preHelpPhase = this.phase;
+    this.phase = 'help';
+    this.help = { target, strategy, startedAt: now };
+    this.stats.helps++;
+    if (!this.mode.freeHelp) {
+      target.helped = true;
+      if (this.loadout.perk !== 'quickHint') this.combo = 0;
+    }
+    this.buffer = '';
+    this.focusOverride = target.id;
+    this.events.emit('help', { target, strategy });
+    return true;
+  }
+
+  closeHelp(): void {
+    if (this.phase !== 'help' || !this.help) return;
+    const { target } = this.help;
+    this.help = null;
+    this.phase = this.preHelpPhase;
+    // Le temps passé à lire n'est pas compté dans le temps de réponse.
+    this.lastResolve = this.time;
+    this.events.emit('helpClosed', { target });
+  }
+
   abort(): SessionResult {
     const r = this.buildResult(false);
     r.aborted = true;
@@ -281,6 +327,7 @@ export class Game {
   // ---------------------------------------------------------------- saisie
 
   typeDigit(d: number): void {
+    if (this.phase === 'help') this.closeHelp();
     if (this.phase === 'paused' || this.phase === 'ended' || this.phase === 'intro') return;
     if (this.buffer.length >= 4) return;
     if (this.buffer === '' && d === 0) return;
@@ -318,6 +365,10 @@ export class Game {
 
   /** Tir : déclenché par Entrée/Espace ou par le tir automatique. */
   fire(): void {
+    if (this.phase === 'help') {
+      this.closeHelp();
+      if (this.buffer === '') return;
+    }
     if (this.phase === 'paused' || this.phase === 'ended' || this.phase === 'intro') return;
     if (this.buffer === '') return;
     const n = Number(this.buffer);
@@ -537,7 +588,7 @@ export class Game {
       rotSpeed: this.rng.range(-0.6, 0.6),
       shapeSeed: this.rng.int(0, 1_000_000),
       generation,
-      hinted: false,
+      helped: false,
       scale: generation > 0 ? 1 : 0,
       slowUntil: 0,
     };
@@ -573,7 +624,7 @@ export class Game {
   // ---------------------------------------------------------------- mise à jour
 
   update(dt: number): void {
-    if (this.phase === 'paused' || this.phase === 'ended') return;
+    if (this.phase === 'paused' || this.phase === 'help' || this.phase === 'ended') return;
     const ms = dt * 1000;
     this.time += ms;
     this.cannon.recoil = Math.max(0, this.cannon.recoil - dt * 4);
@@ -612,7 +663,6 @@ export class Game {
     if (!this.frozen) this.updateAsteroids(dt);
     this.updateProjectiles(dt);
     this.updateCannon(dt);
-    this.updateHints();
 
     if (this.phase === 'playing' && this.waveSpawned >= this.waveSize && this.asteroids.every((a) => !a.alive)) {
       this.endWave();
@@ -697,41 +747,12 @@ export class Game {
     this.cannon.targetId = aim ? aim.id : -1;
   }
 
-  private updateHints(): void {
-    const f = this.focus;
-    if (!f || f.type !== 'asteroid') return;
-    const a = f as Asteroid;
-    if (a.hinted) return;
-    const delay = (this.mode.hintsAlways ? 400 : hintDelayMs(this.mode.fluentMs)) * (this.loadout.perk === 'quickHint' ? 0.6 : 1);
-    if (this.time - Math.max(a.spawnTime, this.lastResolve) >= delay) {
-      a.hinted = true;
-      this.events.emit('hint', { target: a, hint: this.makeHint(a.fact) });
-    }
-  }
-
-  /** Choisit une stratégie d'indice basée sur un fait voisin que le joueur connaît mieux. */
-  private makeHint(fact: Fact): HintData {
-    if (fact.a === 1 || fact.b === 1) return { fact, kind: 'identity' };
-    if (fact.a === 2 || fact.b === 2) return { fact, kind: 'twice' };
-    const states = this.scheduler.states;
-    const known = (f: Fact) => (states.get(f.id)?.pKnown ?? 0) + (f.b === 1 || f.b === 2 || f.b === 5 || f.b === 10 ? 0.3 : 0);
-    const comm = commuted(fact);
-    const candidates: { kind: HintData['kind']; support: Fact; score: number }[] = [];
-    if (fact.b > 1) candidates.push({ kind: 'neighbor-down', support: makeFact(fact.a, fact.b - 1), score: known(makeFact(fact.a, fact.b - 1)) });
-    if (fact.b < this.mode.maxTable) candidates.push({ kind: 'neighbor-up', support: makeFact(fact.a, fact.b + 1), score: known(makeFact(fact.a, fact.b + 1)) - 0.1 });
-    if (comm.id !== fact.id) candidates.push({ kind: 'commute', support: comm, score: known(comm) - 0.05 });
-    if (fact.b % 2 === 0 && fact.b > 2) candidates.push({ kind: 'double', support: makeFact(fact.a, fact.b / 2), score: known(makeFact(fact.a, fact.b / 2)) - 0.05 });
-    candidates.sort((x, y) => y.score - x.score);
-    const best = candidates[0];
-    if (!best || best.score < 0.45 || fact.b <= 3) return { fact, kind: 'repeat' };
-    return { fact, kind: best.kind, support: best.support };
-  }
-
   // ---------------------------------------------------------------- résolution
 
   private resolveHit(t: Target): void {
     if (!t.alive) return;
-    const rt = this.responseTime(t);
+    // Cible aidée : jamais « fluide », pas de bonus de vitesse (demi-preuve pour le modèle).
+    const rt = t.helped ? Math.max(this.responseTime(t), this.mode.fluentMs + 1) : this.responseTime(t);
     const fluent = rt <= this.mode.fluentMs;
     const report = this.scheduler.reportResult(t.fact, true, rt, this.wallClock);
     this.flow.recordOutcome(true, rt);
@@ -739,7 +760,7 @@ export class Game {
     this.stats.answered++;
     this.stats.rtSum += rt;
     if (fluent) this.stats.fluent++;
-    this.correctRts.push(Math.round(rt));
+    if (!t.helped) this.correctRts.push(Math.round(rt));
     if (this.prioritySet.has(t.fact.id)) {
       this.stats.reviewed++;
       this.prioritySet.delete(t.fact.id);
@@ -1036,6 +1057,7 @@ export class Game {
       aborted: false,
       correctRts: [...this.correctRts],
       reviewed: s.reviewed,
+      helps: s.helps,
     };
   }
 }

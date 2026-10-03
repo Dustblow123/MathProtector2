@@ -8,6 +8,7 @@ export type InputEvents = {
   cycleTarget: void;
   powerup: number; // index 0..2
   pause: void;
+  help: void;
 };
 
 /** Saisie clavier unifiée (le pavé numérique DOM appelle les mêmes méthodes). */
@@ -47,6 +48,9 @@ export class Input extends Emitter<InputEvents> {
     } else if (k === 'F1' || k === 'F2' || k === 'F3') {
       e.preventDefault();
       this.emit('powerup', Number(k.slice(1)) - 1);
+    } else if (k === 'h' || k === 'H' || k === '?') {
+      e.preventDefault();
+      this.emit('help', undefined);
     } else if (k === 'Delete') {
       e.preventDefault();
       this.emit('cancel', undefined);

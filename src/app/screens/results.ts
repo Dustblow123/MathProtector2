@@ -71,6 +71,7 @@ export function renderResults(app: App, params: ResultsParams): ScreenResult {
           stat(`+${result.xp}`, t('results.xp')),
           result.wavesCleared > 0 ? stat(String(result.wavesCleared), t('results.waves')) : '',
           result.modeId === 'review' ? stat(String(result.reviewed), t('results.reviewed')) : '',
+          result.helps > 0 ? stat(String(result.helps), t('results.helps')) : '',
         ),
         h('div', { style: 'margin-top:14px' }, h('div', { class: 'row small muted', style: 'justify-content:space-between' }, h('span', null, t('common.level', { n: lvl.level })), h('span', null, `${lvl.current} / ${lvl.next} XP`)), h('div', { class: 'progress' }, h('i', { style: `width:${Math.round((lvl.current / lvl.next) * 100)}%` }))),
       ),

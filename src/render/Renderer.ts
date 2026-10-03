@@ -7,7 +7,7 @@ import type { Chrono } from '../game/bosses/Chrono';
 import type { Mothership } from '../game/bosses/Mothership';
 import type { Phantom } from '../game/bosses/Phantom';
 import { POWERUPS } from '../game/powerups';
-import type { Asteroid, BossTarget, HintData, Projectile, Target } from '../game/types';
+import type { Asteroid, BossTarget, Projectile, Target } from '../game/types';
 import { t } from '../i18n';
 import type { CannonSkin, EquippedSkins, PlanetSkin, ReticleSkin, TrailSkin } from '../progression/cosmetics';
 import { Background, hexToRgba } from './background';
@@ -15,11 +15,9 @@ import { ScreenEffects } from './effects';
 import { ParticleSystem } from './particles';
 import { asteroidSprite, glowSprite } from './sprites';
 import { FloatingTexts, outlinedText } from './text';
-import { drawVisualHint } from './hints';
 
 export interface RendererOptions {
   reducedMotion: boolean;
-  hintStyle?: 'text' | 'visual' | 'both';
   colorblind?: boolean;
   largeText?: boolean;
   highContrast?: boolean;
@@ -33,7 +31,6 @@ export class Renderer {
   readonly texts = new FloatingTexts();
   readonly fx = new ScreenEffects();
   readonly background = new Background();
-  private hints = new Map<number, HintData>();
   private planetStrip: HTMLCanvasElement | null = null;
   private planetKey = '';
   private time = 0;
@@ -66,7 +63,6 @@ export class Renderer {
   attach(game: Game): void {
     this.unbind();
     this.game = game;
-    this.hints.clear();
     this.particles.clear();
     this.texts.items = [];
     this.bind(game);
@@ -89,14 +85,12 @@ export class Renderer {
         const eq = target.type === 'boss' && target.label.includes('?') ? `${f.a} × ${f.b} = ${f.product}` : `${target.label} = ${target.answer}`;
         this.texts.add(`${this.opts.colorblind ? '✓ ' : ''}${eq}`, target.x, target.y - r - 6, byPowerup ? '#ffd166' : fluent ? this.okColor : '#eaf2ff', 24, 1.5);
         if (score > 0 && !byPowerup) this.texts.add(`+${score}`, target.x, target.y + 10, '#ffd166', 20, 1);
-        this.hints.delete(target.id);
       }),
       ev.on('earthHit', ({ target }) => {
         this.particles.burst(target.x, EARTH_Y - 10, ['#ff5d73', '#ff9f43', '#ffffff'], 'burst', 60, 1.4);
         this.fx.addShake(18);
         this.fx.flash('#ff2d55', 0.35);
         this.texts.add(`${this.opts.colorblind ? '✗ ' : ''}${target.label} = ${target.answer}`, target.x, EARTH_Y - 110, this.koColor, 34, 2.2);
-        this.hints.delete(target.id);
       }),
       ev.on('shieldAbsorb', ({ target }) => {
         this.particles.burst(target.x, EARTH_Y - 20, ['#5cf2a6', '#38e8ff', '#ffffff'], 'ring', 60, 1);
@@ -167,7 +161,6 @@ export class Renderer {
         }
         if (type === 'laser') this.fx.addShake(8);
       }),
-      ev.on('hint', ({ target, hint }) => this.hints.set(target.id, hint)),
       ev.on('lightning', ({ points }) => {
         this.lightnings.push({ points, life: 0.3 });
         this.fx.flash('#ffd166', 0.12);
@@ -211,7 +204,6 @@ export class Renderer {
 
     const focus = g.focus;
     if (focus) this.drawReticle(c, focus);
-    for (const a of g.asteroids) if (a.alive && this.hints.has(a.id) && focus?.id === a.id) this.drawHint(c, a, this.hints.get(a.id) as HintData);
 
     this.drawProjectiles(c);
     this.particles.draw(c);
@@ -220,6 +212,10 @@ export class Renderer {
     if (g.frozen) this.drawFreeze(c);
     if (g.activeEvent === 'iceAge' && !g.frozen) {
       c.fillStyle = 'rgba(127,227,255,0.05)';
+      c.fillRect(-400, -400, WORLD_W + 800, WORLD_H + 800);
+    }
+    if (g.phase === 'help') {
+      c.fillStyle = 'rgba(5,8,26,0.55)';
       c.fillRect(-400, -400, WORLD_W + 800, WORLD_H + 800);
     }
     if (g.phase === 'intro' || this.bossIntro > 0) this.drawBanner(c);
@@ -347,6 +343,7 @@ export class Renderer {
       c.fill();
     }
     outlinedText(c, tg.label, tg.x, tg.y, size, isAimed ? '#ffd166' : '#ffffff', '800');
+    if (tg.helped) outlinedText(c, '?', tg.x + tg.radius * 0.8, tg.y - tg.radius * 0.8, size * 0.7, '#ffd166', '900');
     if (this.game.oracleActive) {
       const first = String(tg.answer)[0] ?? '';
       const rest = '_'.repeat(String(tg.answer).length - 1);
@@ -448,66 +445,6 @@ export class Renderer {
         c.stroke();
     }
     c.restore();
-  }
-
-  private drawHint(c: CanvasRenderingContext2D, a: Asteroid, h: HintData): void {
-    const f = h.fact;
-    let text = '';
-    switch (h.kind) {
-      case 'neighbor-down':
-        text = t('game.hint.neighborDown', { a: f.a, b: f.b, b1: f.b - 1, p1: f.a * (f.b - 1) });
-        break;
-      case 'neighbor-up':
-        text = t('game.hint.neighborUp', { a: f.a, b: f.b, b1: f.b + 1, p1: f.a * (f.b + 1) });
-        break;
-      case 'commute':
-        text = t('game.hint.commute', { a: f.a, b: f.b });
-        break;
-      case 'double':
-        text = t('game.hint.double', { a: f.a, half: f.b / 2, ph: (f.a * f.b) / 2 });
-        break;
-      case 'identity':
-        text = t('game.hint.identity', { n: f.a === 1 ? f.b : f.a });
-        break;
-      case 'twice':
-        text = t('game.hint.twice', { n: f.a === 2 ? f.b : f.a });
-        break;
-      default:
-        text = t('game.hint.repeat', { a: f.a, b: f.b });
-    }
-    const style = this.opts.hintStyle ?? 'text';
-    const showText = style !== 'visual';
-    const showVisual = style !== 'text';
-    let y = a.y + a.radius + 24;
-    if (showText) {
-      c.font = `700 ${this.opts.largeText ? 20 : 17}px Nunito, system-ui, sans-serif`;
-      const w = c.measureText(text).width + 24;
-      const x = clamp(a.x, w / 2 + 8, WORLD_W - w / 2 - 8);
-      c.fillStyle = this.opts.highContrast ? 'rgba(5,8,26,0.97)' : 'rgba(12,18,52,0.85)';
-      c.strokeStyle = 'rgba(56,232,255,0.5)';
-      c.lineWidth = 1.5;
-      roundRect(c, x - w / 2, y - 14, w, 28, 8);
-      c.fill();
-      c.stroke();
-      c.fillStyle = this.opts.highContrast ? '#ffffff' : '#9fb3d9';
-      c.textAlign = 'center';
-      c.textBaseline = 'middle';
-      c.fillText(text, x, y);
-      y += 24;
-    }
-    if (showVisual) {
-      const bw = 190;
-      const bh = f.a <= 3 || f.b === 1 ? 60 : 130;
-      const x = clamp(a.x, bw / 2 + 8, WORLD_W - bw / 2 - 8);
-      const top = Math.min(y, WORLD_H - 120 - bh);
-      c.fillStyle = this.opts.highContrast ? 'rgba(5,8,26,0.97)' : 'rgba(12,18,52,0.85)';
-      c.strokeStyle = 'rgba(56,232,255,0.5)';
-      c.lineWidth = 1.5;
-      roundRect(c, x - bw / 2, top, bw, bh, 10);
-      c.fill();
-      c.stroke();
-      drawVisualHint(c, f, x, top + bh / 2 - 6, bw - 24, bh - 28);
-    }
   }
 
   // ------------------------------------------------------------- boss

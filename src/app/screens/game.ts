@@ -13,6 +13,8 @@ import { Renderer } from '../../render/Renderer';
 import { button, clear, h, modal } from '../../ui/dom';
 import { createNumpad } from '../../ui/numpad';
 import { speech } from '../../audio/speech';
+import { drawStrategyVisual } from '../../render/strategyVisual';
+import { strategyLines, strategyTitle } from '../../ui/strategyText';
 import type { App, GameLaunch, ScreenResult } from '../App';
 
 export function renderGame(app: App, launch: GameLaunch): ScreenResult {
@@ -40,6 +42,7 @@ export function renderGame(app: App, launch: GameLaunch): ScreenResult {
   const slotsEl = h('div', { class: 'powerups' });
   const effectsEl = h('div', { class: 'effects' });
   const pauseBtn = h('button', { class: 'btn btn-icon pause-btn', title: t('hud.pause'), onClick: () => togglePause() }, '⏸');
+  const helpBtn = h('button', { class: 'btn btn-icon pause-btn help-btn', title: t('help.button'), onClick: () => requestHelp() }, '?');
 
   const hud = h(
     'div',
@@ -49,7 +52,7 @@ export function renderGame(app: App, launch: GameLaunch): ScreenResult {
       { class: 'hud-top' },
       h('div', { class: 'hud-box' }, h('div', { class: 'hud-label' }, t('hud.score')), scoreEl, comboEl),
       h('div', { class: 'hud-box hud-wave' }, waveLabel, h('div', { class: 'progress' }, waveBar)),
-      h('div', { class: 'hud-right' }, h('div', { class: 'row' }, h('div', { class: 'hud-box' }, heartsEl), pauseBtn), h('div', { class: 'hud-box' }, dustEl), launch.mode.timeLimitMs > 0 ? h('div', { class: 'hud-box' }, timeEl) : ''),
+      h('div', { class: 'hud-right' }, h('div', { class: 'row' }, h('div', { class: 'hud-box' }, heartsEl), helpBtn, pauseBtn), h('div', { class: 'hud-box' }, dustEl), launch.mode.timeLimitMs > 0 ? h('div', { class: 'hud-box' }, timeEl) : ''),
     ),
     h('div', { class: 'hud-bottom' }, h('div', null, slotsEl, effectsEl), buildNumpad()),
     bossBar,
@@ -154,7 +157,6 @@ export function renderGame(app: App, launch: GameLaunch): ScreenResult {
   // ---------------------------------------------------------------- rendu & boucle
   const renderer = new Renderer(canvas, game, skins, {
     reducedMotion: settings.reducedMotion,
-    hintStyle: settings.hintStyle,
     colorblind: settings.colorblind,
     largeText: settings.largeText,
     highContrast: settings.highContrast,
@@ -170,6 +172,8 @@ export function renderGame(app: App, launch: GameLaunch): ScreenResult {
       loop.timeScale = renderer.update(dt);
       renderer.draw();
       updateHud();
+      tickHelp();
+      helpBtn.classList.toggle('dim', !game.helpAvailable && game.phase !== 'help');
     },
   );
 
@@ -211,9 +215,6 @@ export function renderGame(app: App, launch: GameLaunch): ScreenResult {
     setTimeout(() => msg.remove(), 2600);
   });
   speech.enabled = settings.speech;
-  ev.on('hint', ({ target }) => {
-    if (game.boss?.kind !== 'phantom') speech.fact(target.fact);
-  });
   ev.on('miss', ({ target, answer }) => {
     if (target && answer >= 0) speech.answer(target.fact);
   });
@@ -241,6 +242,7 @@ export function renderGame(app: App, launch: GameLaunch): ScreenResult {
   input.on('cycleTarget', () => game.cycleTarget());
   input.on('powerup', (i) => game.usePowerup(i));
   input.on('pause', () => togglePause());
+  input.on('help', () => requestHelp());
   input.attach();
 
   canvas.el.addEventListener('pointerdown', (e) => {
@@ -253,11 +255,72 @@ export function renderGame(app: App, launch: GameLaunch): ScreenResult {
     if (best) game.setFocus(best.id);
   });
 
+  // ---------------------------------------------------------------- carte de méthode
+  const HELP_MS = 10_000;
+  let helpOverlay: HTMLElement | null = null;
+  let helpRing: SVGCircleElement | null = null;
+  function requestHelp(): void {
+    if (ended) return;
+    if (game.phase === 'help') {
+      game.closeHelp();
+      return;
+    }
+    if (!game.requestHelp(performance.now())) return;
+  }
+  ev.on('help', ({ target, strategy }) => {
+    audio.freeze();
+    const cv = h('canvas', { width: 360, height: 200, class: 'help-visual' }) as HTMLCanvasElement;
+    const ctx = cv.getContext('2d');
+    if (ctx) drawStrategyVisual(ctx, strategy, cv.width, cv.height);
+    const lines = strategyLines(strategy);
+    const ring = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    ring.setAttribute('viewBox', '0 0 40 40');
+    ring.setAttribute('class', 'help-ring');
+    const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    circle.setAttribute('cx', '20');
+    circle.setAttribute('cy', '20');
+    circle.setAttribute('r', '16');
+    ring.appendChild(circle);
+    helpRing = circle;
+    helpOverlay = h(
+      'div',
+      { class: 'overlay help-overlay', onClick: (e: Event) => { if (e.target === helpOverlay) game.closeHelp(); } },
+      h(
+        'div',
+        { class: 'panel help-card' },
+        h('div', { class: 'help-head' }, h('span', { class: 'tag tag-gold' }, `${target.fact.a} × ${target.fact.b}`), h('h2', null, strategyTitle(strategy)), ring),
+        h('div', { class: 'help-steps' }, lines.map((l, i) => h('div', { class: 'help-step', style: `animation-delay:${i * 0.25}s` }, l))),
+        cv,
+        button(t('help.gotIt'), () => game.closeHelp(), 'btn btn-primary btn-big'),
+      ),
+    );
+    root.appendChild(helpOverlay);
+    if (settings.speech) speech.speak(lines.join('. '), true);
+  });
+  ev.on('helpClosed', () => {
+    helpOverlay?.remove();
+    helpOverlay = null;
+    helpRing = null;
+    speech.cancel();
+  });
+  ev.on('helpRefused', () => {
+    const msg = h('div', { class: 'hud-center-msg', style: 'font-size:22px;color:var(--magenta)' }, t('help.refused'));
+    root.appendChild(msg);
+    setTimeout(() => msg.remove(), 1600);
+  });
+  const tickHelp = () => {
+    if (game.phase !== 'help' || !game.help) return;
+    const left = Math.max(0, 1 - (performance.now() - game.help.startedAt) / HELP_MS);
+    if (helpRing) helpRing.style.strokeDashoffset = String(100 * (1 - left));
+    if (left <= 0) game.closeHelp();
+  };
+
   // ---------------------------------------------------------------- pause / fin
   let pauseOverlay: HTMLElement | null = null;
   let ended = false;
   function togglePause(): void {
     if (ended || game.phase === 'intro') return;
+    if (game.phase === 'help') game.closeHelp();
     if (game.phase === 'paused') {
       game.resume();
       pauseOverlay?.remove();
@@ -317,7 +380,7 @@ export function renderGame(app: App, launch: GameLaunch): ScreenResult {
         'div',
         { class: 'panel tutorial' },
         h('h2', null, t('tutorial.title')),
-        h('ol', null, h('li', null, t('tutorial.1')), h('li', null, t('tutorial.2')), h('li', null, t('tutorial.3')), h('li', null, t('tutorial.4'))),
+        h('ol', null, h('li', null, t('tutorial.1')), h('li', null, t('tutorial.2')), h('li', null, t('tutorial.5')), h('li', null, t('tutorial.3')), h('li', null, t('tutorial.4'))),
         button(t('tutorial.go'), () => { tut.remove(); start(); }, 'btn btn-primary btn-big'),
       ),
     );

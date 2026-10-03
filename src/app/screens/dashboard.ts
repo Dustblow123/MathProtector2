@@ -58,6 +58,7 @@ export function renderDashboard(app: App): ScreenResult {
     stat(`${accuracy} %`, t('dash.accuracy')),
     stat(avgRt > 0 ? `${(avgRt / 1000).toFixed(1)} s` : '—', t('dash.avgRt')),
     stat(String(st.streakDays), t('dash.streak')),
+    stat(String(st.helps), t('dash.helps')),
   );
   const week = h('div', { class: 'row', style: 'gap:6px;align-items:flex-end;height:70px' });
   const maxD = Math.max(1, ...last7.map((d) => d.destroyed));

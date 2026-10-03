@@ -45,7 +45,6 @@ export function renderSettings(app: App): ScreenResult {
         toggle(t('settings.autoFire'), t('settings.autoFire.desc'), () => s.autoFire, (v) => (s.autoFire = v)),
         seg(t('settings.numpad'), [{ value: 'auto', label: t('settings.numpad.auto') }, { value: 'on', label: t('settings.numpad.on') }, { value: 'off', label: t('settings.numpad.off') }], () => s.numpad, (v) => (s.numpad = v)),
         toggle(t('settings.reducedMotion'), t('settings.reducedMotion.desc'), () => s.reducedMotion, (v) => (s.reducedMotion = v)),
-        seg(t('settings.hintStyle'), [{ value: 'text', label: t('settings.hintStyle.text') }, { value: 'visual', label: t('settings.hintStyle.visual') }, { value: 'both', label: t('settings.hintStyle.both') }], () => s.hintStyle, (v) => (s.hintStyle = v)),
         toggle(t('settings.speech'), t('settings.speech.desc'), () => s.speech, (v) => (s.speech = v)),
       ),
       h(

@@ -7,3 +7,4 @@ export * from './flow';
 export * from './scheduler';
 export * from './review';
 export * from './calibration';
+export * from './strategies';
