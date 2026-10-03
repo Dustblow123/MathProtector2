@@ -1,0 +1,24 @@
+:root {
+  --bg-0: #05081a;
+  --bg-1: #0b1030;
+  --bg-2: #131a45;
+  --panel: rgba(12, 18, 52, 0.82);
+  --panel-border: rgba(120, 200, 255, 0.18);
+  --text: #eaf2ff;
+  --text-dim: #9fb3d9;
+  --cyan: #38e8ff;
+  --magenta: #ff4fd8;
+  --violet: #8a6cff;
+  --gold: #ffd166;
+  --green: #5cf2a6;
+  --red: #ff5d73;
+  --orange: #ff9f43;
+  --glow-cyan: 0 0 18px rgba(56, 232, 255, 0.55);
+  --glow-magenta: 0 0 18px rgba(255, 79, 216, 0.55);
+  --font-title: 'Orbitron', 'Segoe UI', system-ui, sans-serif;
+  --font-body: 'Nunito', 'Segoe UI', system-ui, sans-serif;
+  --radius: 14px;
+  --radius-sm: 8px;
+  --shadow: 0 10px 40px rgba(0, 0, 0, 0.45);
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
