@@ -52,6 +52,18 @@ export function renderGame(app: App, launch: GameLaunch): ScreenResult {
     bossBar,
   );
   root.appendChild(hud);
+  const numpadEl = hud.querySelector('.numpad') as HTMLElement | null;
+  const syncViewport = () => {
+    game.setViewport(-canvas.offsetX, -canvas.offsetX + canvas.viewW, -canvas.offsetY);
+  };
+  canvas.onResized = syncViewport;
+  const syncInset = () => {
+    const visible = numpadEl && !numpadEl.classList.contains('hidden');
+    canvas.bottomInset = visible ? numpadEl.getBoundingClientRect().height + 24 : 0;
+    canvas.resize();
+  };
+  requestAnimationFrame(syncInset);
+  window.addEventListener('resize', syncInset);
 
   function buildNumpad(): HTMLElement {
     const pad = h('div', { class: `numpad ${app.usesTouch() ? '' : 'hidden'}` });
@@ -304,6 +316,7 @@ export function renderGame(app: App, launch: GameLaunch): ScreenResult {
       renderer.destroy();
       canvas.destroy();
       audio.stopMusic();
+      window.removeEventListener('resize', syncInset);
       document.removeEventListener('visibilitychange', onVisibility);
     },
   };

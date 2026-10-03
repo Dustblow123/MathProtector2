@@ -33,6 +33,8 @@ export const en: Record<keyof typeof fr, string> = {
   'game.hint.neighborUp': '{a} × {b1} = {p1}, so {a} × {b} = {p1} − {a}',
   'game.hint.commute': 'Same as {b} × {a}',
   'game.hint.double': 'Double of {a} × {half} = {ph}',
+  'game.hint.identity': 'Times 1 changes nothing: {n}',
+  'game.hint.twice': 'Double of {n}: {n} + {n}',
   'game.hint.repeat': '{a} + {a} + … ({b} times)',
   'game.resumeIn': 'Resuming in {n}',
   'game.paused': 'Paused',

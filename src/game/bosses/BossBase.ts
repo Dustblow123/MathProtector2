@@ -40,7 +40,8 @@ export abstract class BossBase {
   update(dt: number): void {
     this.tt += dt;
     this.enterT = Math.min(1, this.enterT + dt / 1.2);
-    this.x = 640 + Math.sin(this.tt * 0.5) * 160 * this.enterT;
+    const amp = Math.max(0, Math.min(160, this.game.viewHalfWidth - 340));
+    this.x = this.game.viewCenterX + Math.sin(this.tt * 0.5) * amp * this.enterT;
     this.y = 150 + Math.sin(this.tt * 0.9) * 18 - (1 - this.enterT) * 400;
     if (!this.game.frozen && this.enterT >= 1) {
       this.attackTimer -= dt * 1000;

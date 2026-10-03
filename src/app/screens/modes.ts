@@ -41,7 +41,11 @@ export function renderModes(app: App): ScreenResult {
 
   const defeated = p.bossesDefeated;
   const rushBosses: BossKind[] = (['titan', 'hydra', 'mirror', 'chrono', 'mothership'] as BossKind[]).filter((b) => defeated.includes(b));
-  const rushTables = rushBosses.map((b) => sectorTable(Math.max(0, SECTOR_BOSS.indexOf(b)), p.maxTable));
+  const rushTables = rushBosses.map((b) => {
+    let best = 0;
+    for (let i = 0; i <= Math.min(p.unlockedSector, SECTOR_BOSS.length - 1); i++) if (SECTOR_BOSS[i] === b) best = i;
+    return sectorTable(best, p.maxTable);
+  });
   const dailyKey = dateKey();
   const dailyDone = p.daily?.lastDay === dailyKey;
 

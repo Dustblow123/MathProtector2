@@ -405,6 +405,12 @@ export class Renderer {
       case 'double':
         text = t('game.hint.double', { a: f.a, half: f.b / 2, ph: (f.a * f.b) / 2 });
         break;
+      case 'identity':
+        text = t('game.hint.identity', { n: f.a === 1 ? f.b : f.a });
+        break;
+      case 'twice':
+        text = t('game.hint.twice', { n: f.a === 2 ? f.b : f.a });
+        break;
       default:
         text = t('game.hint.repeat', { a: f.a, b: f.b });
     }

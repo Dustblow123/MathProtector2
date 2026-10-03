@@ -132,7 +132,7 @@ export interface SessionResult {
   aborted: boolean;
 }
 
-export type HintKind = 'neighbor-down' | 'neighbor-up' | 'commute' | 'double' | 'repeat';
+export type HintKind = 'neighbor-down' | 'neighbor-up' | 'commute' | 'double' | 'repeat' | 'identity' | 'twice';
 
 export interface HintData {
   fact: Fact;

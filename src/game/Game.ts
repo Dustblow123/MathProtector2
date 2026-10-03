@@ -86,6 +86,7 @@ export class Game {
   boss: BossBase | null = null;
   earth = { hp: 5, maxHp: 5, shield: false, invulnerable: false, hitFlash: 0 };
   cannon = { x: CANNON_X, y: CANNON_Y, angle: -Math.PI / 2, targetId: -1, recoil: 0 };
+
   buffer = '';
   focusOverride: number | null = null;
 
@@ -135,6 +136,22 @@ export class Game {
     this.timeLeft = mode.timeLimitMs;
     this.bossQueue = [...mode.bosses];
     for (const [id, s] of states) if (masteryLevel(s, mode.fluentMs) === 4) this.masteredBefore.add(id);
+  }
+
+  /** Zone visible en unités monde (le portrait n'affiche pas toute la largeur et voit au-dessus de y=0). */
+  view = { left: 0, right: WORLD_W, top: 0 };
+
+  setViewport(left: number, right: number, top: number): void {
+    this.view = { left, right, top };
+    this.cannon.x = (left + right) / 2;
+  }
+
+  get viewCenterX(): number {
+    return (this.view.left + this.view.right) / 2;
+  }
+
+  get viewHalfWidth(): number {
+    return (this.view.right - this.view.left) / 2;
   }
 
   // ---------------------------------------------------------------- accès
@@ -424,7 +441,7 @@ export class Game {
     const sizeBase = variant === 'ice' ? 54 : variant === 'fire' ? 36 : generation > 0 ? 34 : 44;
     const radius = sizeBase + this.rng.range(-3, 3);
     const x = opts.fromX ?? this.spawnX(radius);
-    const y = opts.fromY ?? -radius - 10;
+    const y = opts.fromY ?? this.view.top - radius - 10;
     const speedVar = this.rng.range(0.9, 1.1);
     const variantSpeed = variant === 'fire' ? 1.5 : variant === 'ice' ? 0.7 : 1;
     const vy = params.fallSpeed * speedVar * variantSpeed * (opts.speedMul ?? 1);
@@ -462,11 +479,12 @@ export class Game {
   }
 
   private spawnX(radius: number): number {
-    const margin = radius + 30;
-    let best = this.rng.range(margin, WORLD_W - margin);
+    const lo = this.view.left + radius + 30;
+    const hi = this.view.right - radius - 30;
+    let best = this.rng.range(lo, hi);
     let bestD = -1;
     for (let i = 0; i < 6; i++) {
-      const x = this.rng.range(margin, WORLD_W - margin);
+      const x = this.rng.range(lo, hi);
       let minD = Infinity;
       for (const a of this.asteroids) if (a.alive && a.y < 200) minD = Math.min(minD, Math.abs(a.x - x));
       if (minD > bestD) {
@@ -549,8 +567,8 @@ export class Game {
       a.x += a.vx * dt;
       a.y += a.vy * dt;
       a.rotation += a.rotSpeed * dt;
-      if (a.x < a.radius) a.vx = Math.abs(a.vx);
-      if (a.x > WORLD_W - a.radius) a.vx = -Math.abs(a.vx);
+      if (a.x < this.view.left + a.radius) a.vx = Math.abs(a.vx);
+      if (a.x > this.view.right - a.radius) a.vx = -Math.abs(a.vx);
       if (a.y + a.radius * 0.6 >= EARTH_Y) this.onEarthImpact(a);
     }
     this.asteroids = this.asteroids.filter((a) => a.alive);
@@ -606,6 +624,8 @@ export class Game {
 
   /** Choisit une stratégie d'indice basée sur un fait voisin que le joueur connaît mieux. */
   private makeHint(fact: Fact): HintData {
+    if (fact.a === 1 || fact.b === 1) return { fact, kind: 'identity' };
+    if (fact.a === 2 || fact.b === 2) return { fact, kind: 'twice' };
     const states = this.scheduler.states;
     const known = (f: Fact) => (states.get(f.id)?.pKnown ?? 0) + (f.b === 1 || f.b === 2 || f.b === 5 || f.b === 10 ? 0.3 : 0);
     const comm = commuted(fact);

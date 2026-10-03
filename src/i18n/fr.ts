@@ -32,6 +32,8 @@ export const fr = {
   'game.hint.neighborUp': '{a} × {b1} = {p1}, donc {a} × {b} = {p1} − {a}',
   'game.hint.commute': 'C\'est pareil que {b} × {a}',
   'game.hint.double': 'Le double de {a} × {half} = {ph}',
+  'game.hint.identity': 'Multiplier par 1 ne change rien : {n}',
+  'game.hint.twice': 'Le double de {n} : {n} + {n}',
   'game.hint.repeat': '{a} + {a} + … ({b} fois)',
   'game.resumeIn': 'Reprise dans {n}',
   'game.paused': 'Pause',

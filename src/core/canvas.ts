@@ -11,6 +11,9 @@ export class GameCanvas {
   /** Largeur/hauteur visibles en unités monde (peut dépasser 1280×720 pour couvrir l'écran). */
   viewW = WORLD_W;
   viewH = WORLD_H;
+  /** Hauteur (px CSS) réservée en bas de l'écran (pavé numérique) en mode portrait. */
+  bottomInset = 0;
+  onResized: (() => void) | null = null;
   private dpr = 1;
   private readonly onResize = () => this.resize();
 
@@ -49,7 +52,10 @@ export class GameCanvas {
     this.viewW = w / this.scale;
     this.viewH = h / this.scale;
     this.offsetX = (this.viewW - WORLD_W) / 2;
-    this.offsetY = (this.viewH - WORLD_H) / 2;
+    const inset = portrait ? this.bottomInset / this.scale : 0;
+    // Paysage : centré. Portrait : le monde est calé en bas, au-dessus du pavé numérique.
+    this.offsetY = portrait && inset > 0 ? Math.min((this.viewH - WORLD_H) / 2, this.viewH - WORLD_H - inset) : (this.viewH - WORLD_H) / 2;
+    this.onResized?.();
   }
 
   /** Prépare la transformation monde → écran pour une frame. */

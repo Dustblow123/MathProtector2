@@ -40,7 +40,7 @@ export function renderResults(app: App, { launch, result, outcome }: ResultsPara
       }, 'btn btn-primary btn-big'),
     );
   }
-  actions.appendChild(button(`↻ ${t('common.replay')}`, () => app.go('game', { ...launch, mode: launch.rebuild() }), nextSector !== null ? 'btn btn-big' : 'btn btn-primary btn-big'));
+  if (result.modeId !== 'daily') actions.appendChild(button(`↻ ${t('common.replay')}`, () => app.go('game', { ...launch, mode: launch.rebuild() }), nextSector !== null ? 'btn btn-big' : 'btn btn-primary btn-big'));
   actions.appendChild(button(t('common.menu'), () => app.go('menu', undefined), 'btn btn-ghost btn-big'));
 
   const el = h(
