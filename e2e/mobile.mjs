@@ -4,7 +4,7 @@ const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromi
 const mob = await browser.newPage({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
 const errors = [];
 mob.on('pageerror', (e) => errors.push('PAGEERROR ' + e.message));
-await mob.goto('http://localhost:4173/MathProtector2/');
+await mob.goto('http://localhost:4173/');
 await mob.waitForTimeout(500);
 await mob.tap('.profile-card');
 await mob.fill('.modal input[type=text]', 'Zoé');

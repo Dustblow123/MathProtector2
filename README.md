@@ -10,15 +10,19 @@ Jeu web d'apprentissage des tables de multiplication : des astéroïdes portant 
 - **Multi-profils** + espace parent (grille de maîtrise 10×10, stats, confusions, tables prioritaires, export/import JSON).
 - Interface FR/EN, clavier ou pavé numérique tactile, audio procédural (aucun fichier son), PWA installable.
 
-## Démarrer
+## Jouer sans rien installer
+
+Ouvre **`dist/index.html`** dans Chrome, Firefox ou Safari (double-clic suffit) : le jeu est entièrement contenu dans ce fichier. Le fichier `index.html` à la racine est la source du projet et ne fonctionne qu'avec le serveur de développement.
+
+## Démarrer (développement)
 
 ```bash
 pnpm install
 pnpm dev        # http://localhost:5173
 pnpm test       # tests unitaires (moteur d'apprentissage, simulation de jeu, stockage)
 pnpm typecheck
-pnpm build      # dist/ (base /MathProtector2/ pour GitHub Pages)
-pnpm preview    # sert dist/ sur http://localhost:4173/MathProtector2/
+pnpm build      # dist/index.html autonome (JS, CSS et polices inlinés)
+pnpm preview    # sert dist/ sur http://localhost:4173/
 ```
 
 Tests de bout en bout (Chromium via Playwright, serveur `pnpm preview` lancé) :

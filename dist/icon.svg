@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="40%" r="70%"><stop offset="0" stop-color="#1a2a6c"/><stop offset="1" stop-color="#05081a"/></radialGradient>
+    <radialGradient id="pl" cx="35%" cy="30%" r="75%"><stop offset="0" stop-color="#7fd3ff"/><stop offset="0.45" stop-color="#1d5fd1"/><stop offset="1" stop-color="#0a1a4a"/></radialGradient>
+    <radialGradient id="ast" cx="35%" cy="30%" r="75%"><stop offset="0" stop-color="#a39fb3"/><stop offset="1" stop-color="#3b3847"/></radialGradient>
+  </defs>
+  <rect width="128" height="128" rx="28" fill="url(#bg)"/>
+  <circle cx="64" cy="128" r="58" fill="url(#pl)"/>
+  <path d="M30 100 Q64 84 98 100" stroke="#5cf2a6" stroke-width="4" fill="none" opacity="0.8"/>
+  <polygon points="40,22 60,16 74,26 70,46 52,52 36,42" fill="url(#ast)" stroke="#d6c8ff" stroke-width="2"/>
+  <text x="55" y="40" font-family="Arial, sans-serif" font-weight="900" font-size="16" fill="#fff" text-anchor="middle">7×8</text>
+  <line x1="64" y1="92" x2="58" y2="50" stroke="#38e8ff" stroke-width="5" stroke-linecap="round"/>
+  <circle cx="58" cy="50" r="5" fill="#fff"/>
+</svg>

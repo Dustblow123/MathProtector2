@@ -1,10 +1,10 @@
-import '@fontsource/orbitron/500.css';
-import '@fontsource/orbitron/700.css';
-import '@fontsource/orbitron/900.css';
-import '@fontsource/nunito/400.css';
-import '@fontsource/nunito/600.css';
-import '@fontsource/nunito/800.css';
-import '@fontsource/nunito/900.css';
+import '@fontsource/orbitron/latin-500.css';
+import '@fontsource/orbitron/latin-700.css';
+import '@fontsource/orbitron/latin-900.css';
+import '@fontsource/nunito/latin-400.css';
+import '@fontsource/nunito/latin-600.css';
+import '@fontsource/nunito/latin-800.css';
+import '@fontsource/nunito/latin-900.css';
 import './styles/base.css';
 import { App } from './app/App';
 
@@ -13,9 +13,14 @@ if (!root) throw new Error('#app introuvable');
 const app = new App(root);
 app.go(app.profile ? 'menu' : 'profiles', undefined);
 
-if ('serviceWorker' in navigator && import.meta.env.PROD) {
+// Service worker (hors-ligne) uniquement quand la page est servie par http(s), pas en ouverture directe du fichier.
+if ('serviceWorker' in navigator && import.meta.env.PROD && location.protocol.startsWith('http')) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`).catch(() => undefined);
+    try {
+      navigator.serviceWorker.register('./sw.js').catch(() => undefined);
+    } catch {
+      /* ignoré */
+    }
   });
 }
 

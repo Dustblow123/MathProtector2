@@ -5,7 +5,7 @@ const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
 const errors = [];
 page.on('pageerror', (e) => errors.push('PAGEERROR ' + e.message + '\n' + e.stack));
 page.on('console', (m) => { if (m.type() === 'error') errors.push('console: ' + m.text()); });
-await page.goto('http://localhost:4173/MathProtector2/');
+await page.goto('http://localhost:4173/');
 await page.waitForTimeout(400);
 await page.click('.profile-card');
 await page.fill('.modal input[type=text]', 'Boss');

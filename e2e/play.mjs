@@ -5,7 +5,7 @@ const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
 const errors = [];
 page.on('pageerror', (e) => errors.push('PAGEERROR ' + e.message + '\n' + e.stack));
 page.on('console', (m) => { if (m.type() === 'error') errors.push('console: ' + m.text()); });
-await page.goto('http://localhost:4173/MathProtector2/');
+await page.goto('http://localhost:4173/');
 await page.waitForTimeout(500);
 await page.click('.profile-card');
 await page.fill('.modal input[type=text]', 'Tom');
@@ -78,7 +78,7 @@ const persisted = await page.evaluate(() => { const s = JSON.parse(localStorage.
 console.log('persisted', JSON.stringify(persisted));
 // Portrait mobile
 const mob = await browser.newPage({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
-await mob.goto('http://localhost:4173/MathProtector2/');
+await mob.goto('http://localhost:4173/');
 await mob.waitForTimeout(500);
 await mob.tap('.profile-card');
 await mob.fill('.modal input[type=text]', 'Zoé');
