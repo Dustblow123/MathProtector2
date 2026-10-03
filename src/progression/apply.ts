@@ -1,6 +1,7 @@
 import type { Profile } from '../data/profile';
 import { FLUENT_MS, factsMap, storeFacts } from '../data/profile';
-import { dateKey, sectorCount } from '../game/modes/index';
+import { dateKey, sectorCount, weekKey } from '../game/modes/index';
+import { pushRts } from '../learning/calibration';
 import { levelFromXp } from '../game/scoring';
 import type { SessionResult } from '../game/types';
 import { tableOrder } from '../learning/curriculum';
@@ -58,6 +59,10 @@ export function applySession(p: Profile, result: SessionResult, facts: Map<FactI
     if (result.score > p.bestBlitz.score) p.bestBlitz = { score: result.score, destroyed: result.destroyed };
   }
   let dailyMedal: string | null = null;
+  if (result.modeId === 'weekly') {
+    dailyMedal = medalFor(result);
+    p.weekly = { week: weekKey(), score: result.score, medal: dailyMedal };
+  }
   if (result.modeId === 'daily') {
     dailyMedal = medalFor(result);
     p.daily = { lastDay: dateKey(), score: result.score, medal: dailyMedal };
@@ -90,6 +95,17 @@ export function applySession(p: Profile, result: SessionResult, facts: Map<FactI
   day.errors += result.errors;
   day.timeMs += result.durationMs;
   for (const [k, v] of Object.entries(confusions)) st.confusions[k] = (st.confusions[k] ?? 0) + v;
+  st.recentRts = pushRts(st.recentRts, result.correctRts);
+  if (result.modeId === 'review' && result.reviewed > 0) {
+    st.reviewSessions++;
+    if (st.lastReviewDay !== today) {
+      const y = new Date();
+      y.setDate(y.getDate() - 1);
+      st.reviewStreak = st.lastReviewDay === dateKey(y) ? st.reviewStreak + 1 : 1;
+      st.lastReviewDay = today;
+    }
+    p.reviewDoneDay = today;
+  }
 
   // Succès et cosmétiques
   const mastered = masteredTables(p);
@@ -97,7 +113,7 @@ export function applySession(p: Profile, result: SessionResult, facts: Map<FactI
   const newAchievements = evaluateAchievements(
     {
       result,
-      totals: { destroyed: st.destroyed, fluent: st.fluent, sessions: st.sessions, streakDays: st.streakDays },
+      totals: { destroyed: st.destroyed, fluent: st.fluent, sessions: st.sessions, streakDays: st.streakDays, reviewSessions: st.reviewSessions, reviewStreak: st.reviewStreak },
       masteredTables: mastered,
       allTablesMastered: tableOrder(p.maxTable).every((t) => mastered.includes(t)),
       bossesEverDefeated: p.bossesDefeated,
@@ -128,5 +144,7 @@ export function applySession(p: Profile, result: SessionResult, facts: Map<FactI
 export function fluentMsFor(p: Profile): number {
   return FLUENT_MS[p.agePreset];
 }
+
+export { medalFor };
 
 export { factsMap };

@@ -25,7 +25,9 @@ import {
   type Projectile,
   type SessionResult,
   type Target,
+  type WaveEvent,
 } from './types';
+import { rollWaveEvent } from './waveEvents';
 
 export const EARTH_Y = WORLD_H - 70;
 export const CANNON_X = WORLD_W / 2;
@@ -60,6 +62,7 @@ export type GameEvents = {
   lightning: { points: { x: number; y: number }[] };
   stardust: { amount: number; x: number; y: number };
   paused: boolean;
+  waveEvent: { event: WaveEvent; wave: number };
 };
 
 export interface SpawnOptions {
@@ -116,7 +119,13 @@ export class Game {
   private idCounter = 1;
   private introTimer = 1500;
 
-  private stats = { destroyed: 0, answered: 0, errors: 0, hits: 0, fluent: 0, rtSum: 0, waves: 0, powerupKills: 0 };
+  private stats = { destroyed: 0, answered: 0, errors: 0, hits: 0, fluent: 0, rtSum: 0, waves: 0, powerupKills: 0, reviewed: 0 };
+  private correctRts: number[] = [];
+  private readonly prioritySet: Set<FactId>;
+  /** Événement de la vague courante, null sinon. */
+  activeEvent: WaveEvent | null = null;
+  private lastEvent: WaveEvent | null = null;
+  private surpriseBossPending = false;
   private factOutcomes = new Map<FactId, FactOutcome>();
   private masteredBefore = new Set<FactId>();
   private comboAwarded = new Set<number>();
@@ -134,6 +143,7 @@ export class Game {
         fluentMs: mode.fluentMs,
         maxNewPerWave: mode.maxNewPerWave,
         reinjectErrors: mode.reinjectErrors,
+        priorityFacts: mode.priorityFacts,
       },
       this.rng,
     );
@@ -145,6 +155,7 @@ export class Game {
     this.timeLeft = mode.timeLimitMs;
     this.bossQueue = [...mode.bosses];
     for (const [id, s] of states) if (masteryLevel(s, mode.fluentMs) === 4) this.masteredBefore.add(id);
+    this.prioritySet = new Set(mode.priorityFacts);
   }
 
   /** Zone visible en unités monde (le portrait n'affiche pas toute la largeur et voit au-dessus de y=0). */
@@ -500,9 +511,9 @@ export class Game {
     if (!fact) return null;
     const params = this.flow.params();
     const generation = opts.generation ?? 0;
-    const variant = opts.variant ?? (generation > 0 ? 'normal' : this.chooseVariant(params.specialChance));
+    const variant = opts.variant ?? (generation > 0 ? 'normal' : this.activeEvent === 'iceAge' && this.phase === 'playing' ? 'ice' : this.chooseVariant(params.specialChance));
     const sizeBase = variant === 'ice' ? 54 : variant === 'fire' ? 36 : generation > 0 ? 34 : 44;
-    const radius = sizeBase + this.rng.range(-3, 3);
+    const radius = (sizeBase + this.rng.range(-3, 3)) * (this.activeEvent === 'meteorShower' ? 0.85 : 1);
     const x = opts.fromX ?? this.spawnX(radius);
     const y = opts.fromY ?? this.view.top - radius - 10;
     const speedVar = this.rng.range(0.9, 1.1);
@@ -538,7 +549,7 @@ export class Game {
   private chooseVariant(specialChance: number): AsteroidVariant {
     if (!this.rng.chance(specialChance)) return 'normal';
     const pool: AsteroidVariant[] = ['fire', 'ice', 'crystal', 'split'];
-    const weights = [3, 2, (this.mode.powerups ? 3 : 1) * (this.loadout.perk === 'crystals' ? 2 : 1), 2];
+    const weights = [3, 2, (this.mode.powerups ? 3 : 1) * (this.loadout.perk === 'crystals' ? 2 : 1) * (this.activeEvent === 'crystalRush' ? 4 : 1), 2];
     return this.rng.weighted(pool, weights);
   }
 
@@ -614,10 +625,12 @@ export class Game {
     this.spawnTimer -= ms;
     const p = this.flow.params();
     const alive = this.asteroids.filter((a) => a.alive).length;
-    if (this.spawnTimer <= 0 && alive < p.maxOnScreen) {
+    const shower = this.activeEvent === 'meteorShower';
+    const maxOn = p.maxOnScreen + (shower ? 1 : 0);
+    if (this.spawnTimer <= 0 && alive < maxOn) {
       if (this.spawnAsteroid()) {
         this.waveSpawned++;
-        this.spawnTimer = p.spawnInterval * (alive === 0 ? 0.5 : 1);
+        this.spawnTimer = p.spawnInterval * (alive === 0 ? 0.5 : 1) * (shower ? 0.55 : 1);
       }
     } else if (alive === 0 && this.spawnTimer > 600) {
       this.spawnTimer = 600; // écran vide : on n'attend pas trop longtemps
@@ -726,6 +739,11 @@ export class Game {
     this.stats.answered++;
     this.stats.rtSum += rt;
     if (fluent) this.stats.fluent++;
+    this.correctRts.push(Math.round(rt));
+    if (this.prioritySet.has(t.fact.id)) {
+      this.stats.reviewed++;
+      this.prioritySet.delete(t.fact.id);
+    }
     this.lastResolve = this.time;
     this.combo++;
     this.maxCombo = Math.max(this.maxCombo, this.combo);
@@ -851,6 +869,7 @@ export class Game {
   }
 
   private addStardust(n: number, x: number, y: number): void {
+    if (this.activeEvent === 'doubleDust') n *= 2;
     this.stardust += n;
     this.events.emit('stardust', { amount: n, x, y });
   }
@@ -875,6 +894,17 @@ export class Game {
       this.end(true);
       return;
     }
+    if (this.pendingSurprise) {
+      this.pendingSurprise = false;
+      this.phase = 'boss';
+      const table = this.mode.tables[this.rng.int(0, this.mode.tables.length - 1)] ?? 2;
+      this.boss = createBoss('titan', this, table);
+      this.boss.surprise = true;
+      this.boss.init();
+      this.scheduler.startWave();
+      this.events.emit('bossStart', { boss: this.boss });
+      return;
+    }
     const total = this.mode.wavesTotal;
     if (total !== null && this.wave >= total) {
       if (this.bossQueue.length > 0) this.startBoss(this.bossQueue.shift() as BossKind);
@@ -893,7 +923,12 @@ export class Game {
     this.waveSpawned = 0;
     this.waveDone = 0;
     this.spawnTimer = 400;
+    this.lastEvent = this.activeEvent;
+    this.activeEvent = rollWaveEvent(this.rng, this.wave, this.lastEvent, this.mode.waveEvents, this.mode.wavesTotal === null || this.mode.bosses.length > 0);
+    if (this.activeEvent === 'iceAge') this.waveSize += 4;
+    if (this.activeEvent === 'surpriseBoss') this.surpriseBossPending = true;
     this.events.emit('waveStart', { wave: this.wave, total: this.mode.wavesTotal });
+    if (this.activeEvent) this.events.emit('waveEvent', { event: this.activeEvent, wave: this.wave });
   }
 
   private endWave(): void {
@@ -903,7 +938,15 @@ export class Game {
     this.events.emit('waveEnd', { wave: this.wave });
     this.phase = 'intermission';
     this.intermissionTimer = 1800;
+    if (this.surpriseBossPending) {
+      // Boss surprise : un Titan réduit s'intercale avant la vague suivante.
+      this.surpriseBossPending = false;
+      this.activeEvent = null;
+      this.pendingSurprise = true;
+    }
   }
+
+  private pendingSurprise = false;
 
   private startBoss(kind: BossKind): void {
     this.phase = 'boss';
@@ -923,6 +966,12 @@ export class Game {
     this.addStardust(50, b.x, b.y);
     this.events.emit('bossDefeated', { boss: b });
     for (const a of [...this.asteroids]) if (a.alive) this.destroyTarget(a, true);
+    if (b.surprise) {
+      this.addStardust(100, b.x, b.y);
+      this.phase = 'intermission';
+      this.intermissionTimer = 2200;
+      return;
+    }
     if (this.bossQueue.length > 0) {
       this.phase = 'intermission';
       this.intermissionTimer = 2600;
@@ -985,6 +1034,8 @@ export class Game {
       newlyMastered,
       perfect,
       aborted: false,
+      correctRts: [...this.correctRts],
+      reviewed: s.reviewed,
     };
   }
 }

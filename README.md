@@ -8,6 +8,9 @@ Jeu web d'apprentissage des tables de multiplication : des astéroïdes portant 
 - **Powerups** : Gel temporel, Bouclier, Nova, Laser de table, Score ×2, Oracle. Les destructions par powerup ne comptent pas dans la précision.
 - **Équipement à effet** : six projectiles (trait, missile sinueux, givre, double tir, onde de choc, éclair à rebond) et huit canons avec un bonus chacun (+1 bouclier, projectiles plus rapides, indices plus tôt, plus de cristaux…).
 - **Progression** : XP et niveaux, étoiles, succès, poussière d'étoiles, Hangar de cosmétiques (traînées, explosions, planètes, nébuleuses, réticules).
+- **Révision du jour** : le menu compte les faits dont la rétention estimée est passée sous 90 % et propose une session courte qui les sert en priorité. **Mini-drill** de 5 questions flash sur les faits ratés après chaque partie. **Calibrage automatique** du seuil de rapidité sur les temps de réponse réels (désactivable dans l'espace parent).
+- **Indices** texte et/ou visuels (grille de points, ligne numérique), lecture vocale optionnelle (Web Speech). **Accessibilité** : police Lexend, grand texte, palette daltonisme, contraste élevé.
+- **Événements de vague** (pluie de météores, poussière ×2, ruée vers les cristaux, ère glaciaire, boss surprise) et **défi de la semaine** seedé avec boss tiré au sort.
 - **Multi-profils** + espace parent (grille de maîtrise 10×10, stats, confusions, tables prioritaires, export/import JSON).
 - Interface FR/EN, clavier ou pavé numérique tactile, audio procédural (aucun fichier son), PWA installable.
 
@@ -32,6 +35,9 @@ Tests de bout en bout (Chromium via Playwright, serveur `pnpm preview` lancé) :
 node e2e/play.mjs /tmp/shots     # parcours complet desktop + captures
 node e2e/boss.mjs /tmp/shots     # boss rush des cinq boss
 node e2e/mobile.mjs /tmp/shots   # portrait tactile avec pavé numérique
+node e2e/v2.mjs /tmp/shots       # campagne libre, projectiles, patrouille, hangar
+node e2e/v3.mjs /tmp/shots       # révision du jour, mini-drill, défi hebdo, accessibilité
+node e2e/mobile3.mjs /tmp/shots  # HUD portrait et paysage
 ```
 
 ## Commandes en jeu

@@ -257,3 +257,71 @@ input[type=range] { width: 160px; accent-color: var(--cyan); }
   .screen, .modal-overlay, .overlay { animation: none; }
 }
 html[data-reduced-motion="1"] * { animation-duration: 0.01s !important; transition-duration: 0.01s !important; }
+
+/* ----- v3 : mini-drill */
+.drill-card { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 24px; border-radius: var(--radius); background: var(--panel); border: 1px solid var(--panel-border); text-align: center; }
+.drill-progress { color: var(--text-dim); font-size: 13px; letter-spacing: 0.1em; }
+.drill-question { font-family: var(--font-title); font-size: clamp(32px, 7vw, 56px); text-shadow: var(--glow-cyan); }
+.drill-answer { min-height: 52px; font-size: 40px; font-weight: 900; color: var(--gold); letter-spacing: 0.1em; }
+.drill-timer { width: min(360px, 80vw); }
+.drill-feedback { min-height: 24px; font-weight: 800; }
+.drill-feedback.good { color: var(--ok); }
+.drill-feedback.bad { color: var(--ko); }
+.drill-hint { background: rgba(5, 8, 26, 0.6); border-radius: 10px; }
+.drill .numpad { width: min(320px, 90vw); }
+
+/* ----- v3 : couleurs de feedback (palette daltonisme) */
+:root { --ok: var(--green); --ko: var(--red); }
+html[data-colorblind="1"] { --ok: #4da3ff; --ko: #ff9f43; --green: #4da3ff; --red: #ff9f43; }
+html[data-contrast="1"] { --panel: rgba(5, 8, 26, 0.96); --panel-border: rgba(255, 255, 255, 0.45); --text-dim: #d5e0f5; }
+html[data-contrast="1"] .hud-box { background: rgba(5, 8, 26, 0.95); border-color: rgba(255, 255, 255, 0.5); }
+html[data-readable="1"] { --font-body: 'Lexend', 'Nunito', system-ui, sans-serif; --font-title: 'Lexend', 'Orbitron', system-ui, sans-serif; }
+html[data-large="1"] { font-size: 19px; }
+html[data-large="1"] .numpad button { height: clamp(52px, 8vh, 68px); font-size: 28px; }
+html[data-large="1"] .hud-score { font-size: clamp(22px, 3.4vw, 32px); }
+.fact-chip.good { background: color-mix(in srgb, var(--ok) 18%, transparent); color: var(--ok); }
+.fact-chip { background: color-mix(in srgb, var(--ko) 18%, transparent); color: var(--ko); }
+
+/* ----- v3 : HUD mobile */
+.numpad { grid-template-columns: repeat(4, 1fr); }
+.numpad .del { grid-row: 1; grid-column: 4; }
+.numpad .fire { grid-column: 4; grid-row: 3; }
+@media (min-width: 900px) and (orientation: landscape) {
+  .numpad { grid-template-columns: repeat(4, 1fr); width: min(300px, 40vw); }
+}
+.hud-mini { display: none; }
+@media (max-width: 600px) and (orientation: portrait) {
+  .hud { padding: max(6px, env(safe-area-inset-top)) 8px max(8px, env(safe-area-inset-bottom)); }
+  .hud-top { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 6px; }
+  .hud-box { padding: 5px 8px; border-radius: 10px; }
+  .hud-score { font-size: 18px; }
+  .hud-label { font-size: 9px; }
+  .hud-combo { font-size: 13px; }
+  .hud-wave .progress { width: 100%; margin-top: 4px; }
+  .hearts { font-size: 15px; gap: 2px; }
+  .hud-right { flex-direction: row; align-items: center; gap: 6px; }
+  .hud-right .row { gap: 6px; }
+  .btn-icon.pause-btn { width: 38px; min-height: 38px; }
+  .boss-bar { top: 64px; width: 88vw; }
+  .boss-bar .name { font-size: 12px; }
+  .hud-bottom { flex-direction: column; align-items: stretch; gap: 8px; }
+  .powerups { justify-content: center; }
+  .pslot { width: 48px; height: 48px; font-size: 18px; }
+  .numpad { width: 100%; gap: 5px; }
+  .numpad button { height: clamp(40px, 6.2vh, 54px); font-size: 22px; }
+  .hud-center-msg { font-size: 22px; }
+}
+@media (max-height: 480px) and (orientation: landscape) {
+  .hud { padding: 4px 8px; }
+  .hud-box { padding: 4px 8px; }
+  .hud-score { font-size: 16px; }
+  .hud-label { font-size: 9px; }
+  .hearts { font-size: 13px; }
+  .hud-bottom { align-items: flex-end; }
+  .numpad { grid-template-columns: repeat(12, 1fr); width: min(560px, 70vw); gap: 4px; }
+  .numpad .del, .numpad .fire { grid-row: auto; grid-column: auto; }
+  .numpad button { height: 34px; font-size: 16px; }
+  .pslot { width: 40px; height: 40px; font-size: 16px; }
+}
+.menu-card.review-due { border-color: var(--gold); box-shadow: 0 0 22px rgba(255, 209, 102, 0.3); }
+.menu-card.review-due .title::after { content: ' •'; color: var(--gold); }

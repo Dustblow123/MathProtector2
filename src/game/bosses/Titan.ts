@@ -9,6 +9,7 @@ export class Titan extends BossBase {
   private total = 16;
 
   init(): void {
+    if (this.surprise) this.total = this.perPhase[0] ?? 6;
     this.attackInterval = 7000;
     this.attackTimer = 5000;
     this.spawnRing();
@@ -27,7 +28,7 @@ export class Titan extends BossBase {
   onTargetDestroyed(_t: BossTarget): void {
     this.hp = 1 - this.kills / this.total;
     if (this.targets.length === 0) {
-      if (this.phase >= this.phases) {
+      if (this.phase >= this.phases || this.surprise) {
         this.defeated = true;
         this.hp = 0;
         return;

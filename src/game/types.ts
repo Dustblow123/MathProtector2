@@ -80,7 +80,9 @@ export interface Projectile {
 
 export type PowerupType = 'freeze' | 'shield' | 'nova' | 'laser' | 'double' | 'oracle';
 
-export type ModeId = 'campaign' | 'survival' | 'blitz' | 'practice' | 'bossRush' | 'daily' | 'patrol';
+export type ModeId = 'campaign' | 'survival' | 'blitz' | 'practice' | 'bossRush' | 'daily' | 'patrol' | 'review' | 'weekly';
+
+export type WaveEvent = 'meteorShower' | 'doubleDust' | 'crystalRush' | 'iceAge' | 'surpriseBoss';
 
 export type BossKind = 'titan' | 'hydra' | 'mirror' | 'chrono' | 'mothership' | 'swarm' | 'phantom' | 'twins';
 
@@ -117,6 +119,10 @@ export interface ModeConfig {
   sector: number | null;
   /** Nombre maximum de faits nouveaux par vague. */
   maxNewPerWave: number;
+  /** Faits servis en priorité (révision du jour). */
+  priorityFacts: string[];
+  /** Événements de vague aléatoires autorisés. */
+  waveEvents: boolean;
 }
 
 export interface FactOutcome {
@@ -158,6 +164,10 @@ export interface SessionResult {
   perfect: boolean;
   /** Partie interrompue par le joueur. */
   aborted: boolean;
+  /** Temps de réponse des réponses justes (ms), pour le calibrage de la fluidité. */
+  correctRts: number[];
+  /** Faits prioritaires (révision) résolus correctement. */
+  reviewed: number;
 }
 
 export type HintKind = 'neighbor-down' | 'neighbor-up' | 'commute' | 'double' | 'repeat' | 'identity' | 'twice';

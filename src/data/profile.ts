@@ -44,6 +44,11 @@ export interface Profile {
   bestPatrol: { score: number; waves: number };
   bestBlitz: { score: number; destroyed: number };
   daily: { lastDay: string; score: number; medal: string } | null;
+  weekly: { week: string; score: number; medal: string } | null;
+  /** Dernier jour (YYYY-MM-DD) où une révision du jour a été faite. */
+  reviewDoneDay: string;
+  /** Seuil de fluidité calibré automatiquement sur les temps de réponse réels. */
+  autoFluent: boolean;
   /** Tables choisies par le parent comme prioritaires (vide = automatique). */
   focusTables: number[];
   stats: {
@@ -59,6 +64,14 @@ export interface Profile {
     /** Confusions : "7x8>63" → nombre d'occurrences. */
     confusions: Record<string, number>;
     days: DayStat[];
+    /** Temps de réponse récents (réponses justes) pour le calibrage. */
+    recentRts: number[];
+    /** Nombre de révisions du jour effectuées et jours consécutifs. */
+    reviewSessions: number;
+    reviewStreak: number;
+    lastReviewDay: string;
+    /** Réponses du mini-drill. */
+    drillAnswers: number;
   };
 }
 
@@ -85,8 +98,11 @@ export function createProfile(name: string, avatar: string, agePreset: AgePreset
     bestPatrol: { score: 0, waves: 0 },
     bestBlitz: { score: 0, destroyed: 0 },
     daily: null,
+    weekly: null,
+    reviewDoneDay: '',
+    autoFluent: true,
     focusTables: [],
-    stats: { sessions: 0, destroyed: 0, correct: 0, fluent: 0, errors: 0, timeMs: 0, lastPlayedDay: '', streakDays: 0, confusions: {}, days: [] },
+    stats: { sessions: 0, destroyed: 0, correct: 0, fluent: 0, errors: 0, timeMs: 0, lastPlayedDay: '', streakDays: 0, confusions: {}, days: [], recentRts: [], reviewSessions: 0, reviewStreak: 0, lastReviewDay: '', drillAnswers: 0 },
   };
 }
 

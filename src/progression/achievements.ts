@@ -34,11 +34,15 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   { id: 'all_bosses', icon: '👑', reward: 400 },
   { id: 'collector', icon: '🎨', reward: 150 },
   { id: 'night_owl', icon: '🦉', reward: 30 },
+  { id: 'review_5', icon: '🔁', reward: 60 },
+  { id: 'review_streak_5', icon: '📆', reward: 150 },
+  { id: 'weekly_gold', icon: '🥇', reward: 200 },
+  { id: 'event_boss', icon: '🎁', reward: 80 },
 ];
 
 export interface AchievementContext {
   result: SessionResult;
-  totals: { destroyed: number; fluent: number; sessions: number; streakDays: number };
+  totals: { destroyed: number; fluent: number; sessions: number; streakDays: number; reviewSessions: number; reviewStreak: number };
   masteredTables: number[];
   allTablesMastered: boolean;
   bossesEverDefeated: string[];
@@ -75,5 +79,9 @@ export function evaluateAchievements(ctx: AchievementContext, already: ReadonlyS
   add('all_bosses', ['titan', 'swarm', 'hydra', 'twins', 'mirror', 'phantom', 'chrono', 'mothership'].every((b) => ctx.bossesEverDefeated.includes(b)));
   add('collector', ctx.cosmeticsOwned >= 15);
   add('night_owl', ctx.hour >= 21 || ctx.hour < 6);
+  add('review_5', ctx.totals.reviewSessions >= 5);
+  add('review_streak_5', ctx.totals.reviewStreak >= 5);
+  add('weekly_gold', r.modeId === 'weekly' && r.accuracy >= 0.95 && r.hitsTaken === 0 && r.victory);
+  add('event_boss', r.modeId !== 'bossRush' && r.modeId !== 'campaign' && r.modeId !== 'weekly' && r.bossesDefeated.length > 0);
   return got;
 }

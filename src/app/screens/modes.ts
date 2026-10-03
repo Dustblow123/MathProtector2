@@ -1,5 +1,5 @@
 import { audio } from '../../audio/AudioManager';
-import { SECTOR_BOSS, blitzMode, bossRushMode, dailyMode, dateKey, patrolMode, practiceMode, sectorTable, survivalMode } from '../../game/modes/index';
+import { SECTOR_BOSS, blitzMode, bossRushMode, dailyMode, dateKey, patrolMode, practiceMode, sectorTable, survivalMode, weekKey, weeklyMode } from '../../game/modes/index';
 import { BOSS_KINDS } from '../../game/bosses/index';
 import type { BossKind, ModeConfig } from '../../game/types';
 import { t } from '../../i18n';
@@ -51,6 +51,8 @@ export function renderModes(app: App): ScreenResult {
   });
   const dailyKey = dateKey();
   const dailyDone = p.daily?.lastDay === dailyKey;
+  const wk = weekKey();
+  const weeklyDone = p.weekly?.week === wk;
 
   const el = h(
     'div',
@@ -89,9 +91,18 @@ export function renderModes(app: App): ScreenResult {
           '',
           dailyDone ? button('✓', () => undefined, 'btn') : button(t('common.play'), () => launch(`${t('modes.daily')} · ${dailyKey}`, () => dailyMode(dailyKey, { ...input(), tables: unlocked })), 'btn btn-accent'),
         ),
+        card(
+          '🏆',
+          t('modes.weekly'),
+          weeklyDone ? t('modes.weekly.done', { score: p.weekly?.score ?? 0, medal: t(`medal.${p.weekly?.medal ?? 'bronze'}` as 'medal.gold') }) : t('modes.weekly.desc'),
+          '',
+          weeklyDone ? button('✓', () => undefined, 'btn') : button(t('common.play'), () => launch(`${t('modes.weekly')} · ${wk}`, () => weeklyMode(wk, p.bossesDefeated, { ...input(), tables: unlocked })), 'btn btn-accent'),
+        ),
       ),
     ),
   );
-  if (dailyDone) (el.querySelectorAll('.mode-card .btn')[5] as HTMLButtonElement | undefined)?.setAttribute('disabled', 'true');
+  const btns = el.querySelectorAll('.mode-card .btn');
+  if (dailyDone) (btns[5] as HTMLButtonElement | undefined)?.setAttribute('disabled', 'true');
+  if (weeklyDone) (btns[6] as HTMLButtonElement | undefined)?.setAttribute('disabled', 'true');
   return { el };
 }

@@ -11,6 +11,8 @@ import { t } from '../../i18n';
 import { applySession } from '../../progression/apply';
 import { Renderer } from '../../render/Renderer';
 import { button, clear, h, modal } from '../../ui/dom';
+import { createNumpad } from '../../ui/numpad';
+import { speech } from '../../audio/speech';
 import type { App, GameLaunch, ScreenResult } from '../App';
 
 export function renderGame(app: App, launch: GameLaunch): ScreenResult {
@@ -54,8 +56,10 @@ export function renderGame(app: App, launch: GameLaunch): ScreenResult {
   );
   root.appendChild(hud);
   const numpadEl = hud.querySelector('.numpad') as HTMLElement | null;
+  const hudTopEl = hud.querySelector('.hud-top') as HTMLElement | null;
   const syncViewport = () => {
-    game.setViewport(-canvas.offsetX, -canvas.offsetX + canvas.viewW, -canvas.offsetY);
+    const hudH = hudTopEl ? (hudTopEl.getBoundingClientRect().bottom + 4) / canvas.scale : 0;
+    game.setViewport(-canvas.offsetX, -canvas.offsetX + canvas.viewW, -canvas.offsetY + hudH);
   };
   canvas.onResized = syncViewport;
   const syncInset = () => {
@@ -67,14 +71,7 @@ export function renderGame(app: App, launch: GameLaunch): ScreenResult {
   window.addEventListener('resize', syncInset);
 
   function buildNumpad(): HTMLElement {
-    const pad = h('div', { class: `numpad ${app.usesTouch() ? '' : 'hidden'}` });
-    const key = (label: string, onPress: () => void, cls = '') =>
-      h('button', { class: cls, type: 'button', onPointerdown: (e: Event) => { e.preventDefault(); onPress(); } }, label);
-    for (const d of [1, 2, 3, 4, 5, 6, 7, 8, 9]) pad.appendChild(key(String(d), () => digit(d)));
-    pad.appendChild(key(t('numpad.del'), () => game.backspace()));
-    pad.appendChild(key('0', () => digit(0)));
-    pad.appendChild(key(t('numpad.fire'), () => confirm(), 'fire'));
-    return pad;
+    return createNumpad({ onDigit: (d) => digit(d), onBackspace: () => game.backspace(), onConfirm: () => confirm() }, { hidden: !app.usesTouch() });
   }
 
   const renderSlots = () => {
@@ -157,6 +154,10 @@ export function renderGame(app: App, launch: GameLaunch): ScreenResult {
   // ---------------------------------------------------------------- rendu & boucle
   const renderer = new Renderer(canvas, game, skins, {
     reducedMotion: settings.reducedMotion,
+    hintStyle: settings.hintStyle,
+    colorblind: settings.colorblind,
+    largeText: settings.largeText,
+    highContrast: settings.highContrast,
     stardustTarget: () => {
       const r = dustEl.getBoundingClientRect();
       return canvas.toWorld(r.left + r.width / 2, r.top + r.height / 2);
@@ -203,6 +204,20 @@ export function renderGame(app: App, launch: GameLaunch): ScreenResult {
     audio.intensity = game.flow.intensity;
   });
   ev.on('waveStart', () => (audio.intensity = game.flow.intensity));
+  ev.on('waveEvent', ({ event }) => {
+    audio.powerupGain();
+    const msg = h('div', { class: 'hud-center-msg', style: 'color:var(--gold);text-shadow:0 0 18px rgba(255,209,102,.6)' }, t(`event.${event}` as 'event.meteorShower'));
+    root.appendChild(msg);
+    setTimeout(() => msg.remove(), 2600);
+  });
+  speech.enabled = settings.speech;
+  ev.on('hint', ({ target }) => {
+    if (game.boss?.kind !== 'phantom') speech.fact(target.fact);
+  });
+  ev.on('miss', ({ target, answer }) => {
+    if (target && answer >= 0) speech.answer(target.fact);
+  });
+  ev.on('earthHit', ({ target }) => speech.answer(target.fact));
   ev.on('victory', (r) => {
     audio.victory();
     finish(r);
@@ -317,6 +332,7 @@ export function renderGame(app: App, launch: GameLaunch): ScreenResult {
       renderer.destroy();
       canvas.destroy();
       audio.stopMusic();
+      speech.cancel();
       window.removeEventListener('resize', syncInset);
       document.removeEventListener('visibilitychange', onVisibility);
     },

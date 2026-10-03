@@ -6,11 +6,13 @@ import { detectLang, setLang, type Lang } from '../i18n';
 import { resolveSkins, type EquippedSkins } from '../progression/cosmetics';
 import type { ApplyOutcome } from '../progression/apply';
 import { tableOrder } from '../learning/curriculum';
+import { calibratedFluentMs } from '../learning/calibration';
 import { clear } from '../ui/dom';
 import { MenuBackdrop } from '../ui/backdrop';
 import { renderAchievements } from './screens/achievements';
 import { renderCampaign } from './screens/campaign';
 import { renderDashboard } from './screens/dashboard';
+import { renderDrill } from './screens/drill';
 import { renderGame } from './screens/game';
 import { renderHangar } from './screens/hangar';
 import { renderMenu } from './screens/menu';
@@ -19,7 +21,7 @@ import { renderProfiles } from './screens/profiles';
 import { renderResults } from './screens/results';
 import { renderSettings } from './screens/settings';
 
-export type ScreenName = 'profiles' | 'menu' | 'campaign' | 'modes' | 'game' | 'results' | 'hangar' | 'achievements' | 'dashboard' | 'settings';
+export type ScreenName = 'profiles' | 'menu' | 'campaign' | 'modes' | 'game' | 'results' | 'drill' | 'hangar' | 'achievements' | 'dashboard' | 'settings';
 
 export interface GameLaunch {
   mode: ModeConfig;
@@ -33,6 +35,8 @@ export interface ResultsParams {
   launch: GameLaunch;
   result: SessionResult;
   outcome: ApplyOutcome;
+  /** Renseigné après le mini-drill. */
+  drillDone?: { total: number; correct: number };
 }
 
 export interface ScreenResult {
@@ -40,7 +44,7 @@ export interface ScreenResult {
   destroy?: () => void;
 }
 
-export type ScreenParams = { game: GameLaunch; results: ResultsParams } & Record<Exclude<ScreenName, 'game' | 'results'>, undefined>;
+export type ScreenParams = { game: GameLaunch; results: ResultsParams; drill: ResultsParams } & Record<Exclude<ScreenName, 'game' | 'results' | 'drill'>, undefined>;
 
 const screens: { [K in ScreenName]: (app: App, params: ScreenParams[K]) => ScreenResult } = {
   profiles: renderProfiles,
@@ -49,6 +53,7 @@ const screens: { [K in ScreenName]: (app: App, params: ScreenParams[K]) => Scree
   modes: renderModes,
   game: renderGame,
   results: renderResults,
+  drill: renderDrill,
   hangar: renderHangar,
   achievements: renderAchievements,
   dashboard: renderDashboard,
@@ -103,7 +108,12 @@ export class App {
 
   applySettings(): void {
     const s = this.settings;
-    document.documentElement.dataset.reducedMotion = s.reducedMotion ? '1' : '0';
+    const d = document.documentElement.dataset;
+    d.reducedMotion = s.reducedMotion ? '1' : '0';
+    d.readable = s.readableFont ? '1' : '0';
+    d.large = s.largeText ? '1' : '0';
+    d.colorblind = s.colorblind ? '1' : '0';
+    d.contrast = s.highContrast ? '1' : '0';
     this.backdrop.reducedMotion = s.reducedMotion;
     audio.setVolumes(s.sfxVolume, s.musicVolume);
   }
@@ -119,8 +129,11 @@ export class App {
     return resolveSkins(this.profile?.equipped ?? {});
   }
 
+  /** Seuil de fluidité : préréglage d'âge, calibré sur les temps de réponse réels si le profil l'autorise. */
   fluentMs(): number {
-    return FLUENT_MS[this.p.agePreset];
+    const p = this.p;
+    const base = FLUENT_MS[p.agePreset];
+    return p.autoFluent ? calibratedFluentMs(base, p.stats.recentRts) : base;
   }
 
   /** Tables terminées en campagne (au moins une étoile), dans l'ordre pédagogique. */

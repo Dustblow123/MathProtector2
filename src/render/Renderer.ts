@@ -15,9 +15,14 @@ import { ScreenEffects } from './effects';
 import { ParticleSystem } from './particles';
 import { asteroidSprite, glowSprite } from './sprites';
 import { FloatingTexts, outlinedText } from './text';
+import { drawVisualHint } from './hints';
 
 export interface RendererOptions {
   reducedMotion: boolean;
+  hintStyle?: 'text' | 'visual' | 'both';
+  colorblind?: boolean;
+  largeText?: boolean;
+  highContrast?: boolean;
   /** Point (coordonnées monde) vers lequel file la poussière d'étoiles. */
   stardustTarget: () => { x: number; y: number };
 }
@@ -35,6 +40,12 @@ export class Renderer {
   private offs: (() => void)[] = [];
   private bossIntro = 0;
   private lightnings: { points: { x: number; y: number }[]; life: number }[] = [];
+  private get okColor(): string {
+    return this.opts.colorblind ? '#4da3ff' : '#5cf2a6';
+  }
+  private get koColor(): string {
+    return this.opts.colorblind ? '#ff9f43' : '#ff5d73';
+  }
 
   constructor(
     private readonly canvas: GameCanvas,
@@ -76,7 +87,7 @@ export class Renderer {
         this.fx.addShake(byPowerup ? 2 : Math.min(8, r * 0.12));
         const f = target.fact;
         const eq = target.type === 'boss' && target.label.includes('?') ? `${f.a} × ${f.b} = ${f.product}` : `${target.label} = ${target.answer}`;
-        this.texts.add(eq, target.x, target.y - r - 6, byPowerup ? '#ffd166' : fluent ? '#5cf2a6' : '#eaf2ff', 24, 1.5);
+        this.texts.add(`${this.opts.colorblind ? '✓ ' : ''}${eq}`, target.x, target.y - r - 6, byPowerup ? '#ffd166' : fluent ? this.okColor : '#eaf2ff', 24, 1.5);
         if (score > 0 && !byPowerup) this.texts.add(`+${score}`, target.x, target.y + 10, '#ffd166', 20, 1);
         this.hints.delete(target.id);
       }),
@@ -84,19 +95,19 @@ export class Renderer {
         this.particles.burst(target.x, EARTH_Y - 10, ['#ff5d73', '#ff9f43', '#ffffff'], 'burst', 60, 1.4);
         this.fx.addShake(18);
         this.fx.flash('#ff2d55', 0.35);
-        this.texts.add(`${target.label} = ${target.answer}`, target.x, EARTH_Y - 110, '#ff5d73', 34, 2.2);
+        this.texts.add(`${this.opts.colorblind ? '✗ ' : ''}${target.label} = ${target.answer}`, target.x, EARTH_Y - 110, this.koColor, 34, 2.2);
         this.hints.delete(target.id);
       }),
       ev.on('shieldAbsorb', ({ target }) => {
         this.particles.burst(target.x, EARTH_Y - 20, ['#5cf2a6', '#38e8ff', '#ffffff'], 'ring', 60, 1);
         this.fx.flash('#38e8ff', 0.2);
-        this.texts.add(t('game.shieldAbsorb'), target.x, EARTH_Y - 110, '#5cf2a6', 28, 1.5);
+        this.texts.add(t('game.shieldAbsorb'), target.x, EARTH_Y - 110, this.okColor, 28, 1.5);
         this.texts.add(`${target.label} = ${target.answer}`, target.x, EARTH_Y - 80, '#eaf2ff', 22, 2);
       }),
       ev.on('miss', ({ answer, target, report }) => {
         if (!target) return;
         this.fx.addShake(4);
-        if (answer >= 0) this.texts.add(t('game.wrongWas', { answer }), target.x, target.y - target.radius - 6, '#ff5d73', 24, 1.3);
+        if (answer >= 0) this.texts.add(t('game.wrongWas', { answer }), target.x, target.y - target.radius - 6, this.koColor, 24, 1.3);
         const a = report?.analysis;
         let extra = '';
         if (a?.kind === 'addition') extra = t('game.addition', { answer, a: target.fact.a, b: target.fact.b });
@@ -207,6 +218,10 @@ export class Renderer {
     this.texts.draw(c);
 
     if (g.frozen) this.drawFreeze(c);
+    if (g.activeEvent === 'iceAge' && !g.frozen) {
+      c.fillStyle = 'rgba(127,227,255,0.05)';
+      c.fillRect(-400, -400, WORLD_W + 800, WORLD_H + 800);
+    }
     if (g.phase === 'intro' || this.bossIntro > 0) this.drawBanner(c);
     c.restore();
     this.fx.drawOverlay(c, -cv.offsetX, -cv.offsetY, cv.viewW, cv.viewH);
@@ -324,8 +339,13 @@ export class Renderer {
   }
 
   private drawLabel(c: CanvasRenderingContext2D, tg: Target, radius: number): void {
-    const size = clamp(radius * 0.62, 20, 34);
+    const size = clamp(radius * 0.62, 20, 34) * (this.opts.largeText ? 1.25 : 1);
     const isAimed = this.game.cannon.targetId === tg.id && this.game.buffer.length > 0;
+    if (this.opts.highContrast) {
+      c.fillStyle = 'rgba(5,8,26,0.75)';
+      roundRect(c, tg.x - size * 2.2, tg.y - size * 0.7, size * 4.4, size * 1.4, 8);
+      c.fill();
+    }
     outlinedText(c, tg.label, tg.x, tg.y, size, isAimed ? '#ffd166' : '#ffffff', '800');
     if (this.game.oracleActive) {
       const first = String(tg.answer)[0] ?? '';
@@ -455,20 +475,39 @@ export class Renderer {
       default:
         text = t('game.hint.repeat', { a: f.a, b: f.b });
     }
-    const y = a.y + a.radius + 24;
-    c.font = '700 17px Nunito, system-ui, sans-serif';
-    const w = c.measureText(text).width + 24;
-    const x = clamp(a.x, w / 2 + 8, WORLD_W - w / 2 - 8);
-    c.fillStyle = 'rgba(12,18,52,0.85)';
-    c.strokeStyle = 'rgba(56,232,255,0.5)';
-    c.lineWidth = 1.5;
-    roundRect(c, x - w / 2, y - 14, w, 28, 8);
-    c.fill();
-    c.stroke();
-    c.fillStyle = '#9fb3d9';
-    c.textAlign = 'center';
-    c.textBaseline = 'middle';
-    c.fillText(text, x, y);
+    const style = this.opts.hintStyle ?? 'text';
+    const showText = style !== 'visual';
+    const showVisual = style !== 'text';
+    let y = a.y + a.radius + 24;
+    if (showText) {
+      c.font = `700 ${this.opts.largeText ? 20 : 17}px Nunito, system-ui, sans-serif`;
+      const w = c.measureText(text).width + 24;
+      const x = clamp(a.x, w / 2 + 8, WORLD_W - w / 2 - 8);
+      c.fillStyle = this.opts.highContrast ? 'rgba(5,8,26,0.97)' : 'rgba(12,18,52,0.85)';
+      c.strokeStyle = 'rgba(56,232,255,0.5)';
+      c.lineWidth = 1.5;
+      roundRect(c, x - w / 2, y - 14, w, 28, 8);
+      c.fill();
+      c.stroke();
+      c.fillStyle = this.opts.highContrast ? '#ffffff' : '#9fb3d9';
+      c.textAlign = 'center';
+      c.textBaseline = 'middle';
+      c.fillText(text, x, y);
+      y += 24;
+    }
+    if (showVisual) {
+      const bw = 190;
+      const bh = f.a <= 3 || f.b === 1 ? 60 : 130;
+      const x = clamp(a.x, bw / 2 + 8, WORLD_W - bw / 2 - 8);
+      const top = Math.min(y, WORLD_H - 120 - bh);
+      c.fillStyle = this.opts.highContrast ? 'rgba(5,8,26,0.97)' : 'rgba(12,18,52,0.85)';
+      c.strokeStyle = 'rgba(56,232,255,0.5)';
+      c.lineWidth = 1.5;
+      roundRect(c, x - bw / 2, top, bw, bh, 10);
+      c.fill();
+      c.stroke();
+      drawVisualHint(c, f, x, top + bh / 2 - 6, bw - 24, bh - 28);
+    }
   }
 
   // ------------------------------------------------------------- boss

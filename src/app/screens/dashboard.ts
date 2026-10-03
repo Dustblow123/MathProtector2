@@ -1,6 +1,6 @@
 import { audio } from '../../audio/AudioManager';
 import { formatDuration } from '../../core/math';
-import { createProfile, factsMap, type AgePreset } from '../../data/profile';
+import { FLUENT_MS, createProfile, factsMap, type AgePreset } from '../../data/profile';
 import { exportProfile, importProfile } from '../../data/storage';
 import { t } from '../../i18n';
 import { tableOrder, tableStats } from '../../learning/curriculum';
@@ -100,6 +100,9 @@ export function renderDashboard(app: App): ScreenResult {
     for (const a of ['young', 'mid', 'older'] as AgePreset[]) ageSeg.appendChild(h('button', { type: 'button', class: p.agePreset === a ? 'sel' : '', onClick: () => { p.agePreset = a; app.persist(); renderAge(); } }, t(`profiles.age.${a}`)));
   };
   renderAge();
+  const fluentNow = app.fluentMs();
+  const fluentLabel = h('span', { class: 'small muted' }, p.autoFluent ? t('dash.fluentAuto', { s: (fluentNow / 1000).toFixed(1) }) : t('dash.fluentFixed', { s: (FLUENT_MS[p.agePreset] / 1000).toFixed(1) }));
+  const autoSwitch = h('button', { class: `switch ${p.autoFluent ? 'on' : ''}`, type: 'button', onClick: () => { p.autoFluent = !p.autoFluent; app.persist(); app.go('dashboard', undefined); } });
 
   const exportBtn = button(`⬇ ${t('dash.export')}`, () => {
     const blob = new Blob([exportProfile(p)], { type: 'application/json' });
@@ -157,7 +160,7 @@ export function renderDashboard(app: App): ScreenResult {
         h('div', { class: 'panel' }, h('h3', null, t('dash.tables')), h('div', { style: 'margin-top:10px' }, bars)),
         h('div', { class: 'panel' }, h('h3', null, t('dash.stats')), h('div', { style: 'margin-top:10px' }, statGrid), h('h3', { style: 'margin-top:14px' }, t('dash.last7')), week),
         h('div', { class: 'panel' }, h('h3', null, t('dash.confusions')), h('div', { style: 'margin:10px 0 14px' }, confList), h('h3', null, t('dash.weakest')), h('div', { style: 'margin-top:10px' }, weakList)),
-        h('div', { class: 'panel' }, h('h3', null, t('dash.focus')), h('p', { class: 'small muted' }, t('dash.focusHint')), focusChips, h('div', { class: 'toggle' }, h('b', null, t('dash.maxTable')), maxSeg), h('div', { class: 'toggle' }, h('b', null, t('dash.age')), ageSeg)),
+        h('div', { class: 'panel' }, h('h3', null, t('dash.focus')), h('p', { class: 'small muted' }, t('dash.focusHint')), focusChips, h('div', { class: 'toggle' }, h('b', null, t('dash.maxTable')), maxSeg), h('div', { class: 'toggle' }, h('b', null, t('dash.age')), ageSeg), h('div', { class: 'toggle' }, h('div', null, h('b', null, t('dash.autoFluent')), h('div', { class: 'desc' }, t('dash.fluent'), ' : ', fluentLabel)), autoSwitch)),
         h('div', { class: 'panel' }, h('div', { class: 'row' }, exportBtn, importBtn), h('div', { style: 'margin-top:14px' }, resetBtn)),
       ),
     ),

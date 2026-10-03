@@ -2,7 +2,7 @@ import type { Lang } from '../i18n';
 import { AVATARS, createProfile, type Profile } from './profile';
 
 export const STORAGE_KEY = 'mp2:save';
-export const SAVE_VERSION = 1;
+export const SAVE_VERSION = 2;
 
 export interface Settings {
   lang: Lang | null;
@@ -11,6 +11,14 @@ export interface Settings {
   autoFire: boolean;
   numpad: 'auto' | 'on' | 'off';
   reducedMotion: boolean;
+  /** Indices : texte, visuel (grille de points / ligne numérique) ou les deux. */
+  hintStyle: 'text' | 'visual' | 'both';
+  /** Lecture vocale des calculs (Web Speech). */
+  speech: boolean;
+  readableFont: boolean;
+  largeText: boolean;
+  colorblind: boolean;
+  highContrast: boolean;
 }
 
 export interface SaveData {
@@ -27,6 +35,12 @@ export const DEFAULT_SETTINGS: Settings = {
   autoFire: true,
   numpad: 'auto',
   reducedMotion: false,
+  hintStyle: 'both',
+  speech: false,
+  readableFont: false,
+  largeText: false,
+  colorblind: false,
+  highContrast: false,
 };
 
 export function emptySave(): SaveData {
@@ -41,7 +55,7 @@ export function migrate(raw: unknown): SaveData {
   out.settings = { ...DEFAULT_SETTINGS, ...(data.settings ?? {}) };
   out.activeProfileId = data.activeProfileId ?? null;
   out.profiles = Array.isArray(data.profiles) ? data.profiles.map(normalizeProfile) : [];
-  // Les migrations futures s'enchaînent ici : if ((data.version ?? 0) < 2) { ... }
+  // v1 → v2 : nouveaux champs de profil (weekly, reviewDoneDay, autoFluent, stats.recentRts…) ajoutés par normalizeProfile.
   out.version = SAVE_VERSION;
   return out;
 }

@@ -23,6 +23,8 @@ export abstract class BossBase {
   /** Temps d'apparition (animation d'entrée). */
   enterT = 0;
   defeated = false;
+  /** Boss surprise (événement de vague) : version courte, la partie continue ensuite. */
+  surprise = false;
   /** Nombre de cibles détruites au total. */
   kills = 0;
   readonly table: number;

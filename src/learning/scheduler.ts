@@ -19,6 +19,8 @@ export interface SchedulerConfig {
   reinjectErrors?: boolean;
   /** Fenêtre de récence : un fait ne réapparaît pas dans les K prochains tirages (sauf réinjection). */
   recencyWindow?: number;
+  /** Faits à servir en priorité (révision du jour), dans l'ordre, avant toute autre sélection. */
+  priorityFacts?: FactId[];
 }
 
 export const DEFAULT_QUOTAS: BucketQuotas = { new: 0.15, learning: 0.45, review: 0.3, maintenance: 0.1 };
@@ -45,7 +47,8 @@ export interface ResultReport {
  */
 export class Scheduler {
   readonly states: Map<FactId, FactState>;
-  private readonly cfg: Required<Omit<SchedulerConfig, 'newTables'>> & { newTables: number[] };
+  private readonly cfg: Required<Omit<SchedulerConfig, 'newTables' | 'priorityFacts'>> & { newTables: number[] };
+  private priorityQueue: FactId[] = [];
   private readonly rng: Rng;
   private counter = 0;
   private history: FactId[] = [];
@@ -68,6 +71,7 @@ export class Scheduler {
       reinjectErrors: config.reinjectErrors ?? true,
       recencyWindow: config.recencyWindow ?? 6,
     };
+    this.priorityQueue = [...(config.priorityFacts ?? [])];
     for (const t of this.cfg.activeTables) {
       for (const f of factsOfTable(t, this.cfg.maxTable)) {
         if (!this.states.has(f.id)) this.states.set(f.id, initialFactState(f));
@@ -120,6 +124,17 @@ export class Scheduler {
    * `onScreenProducts` : produits déjà visibles (jamais deux fois le même produit à l'écran).
    */
   pickNext(onScreenProducts: ReadonlySet<number>, now: number): Fact | null {
+    // 0. File prioritaire (révision du jour) : servie dans l'ordre, sans doublon de produit à l'écran.
+    const pIdx = this.priorityQueue.findIndex((id) => {
+      const f = parseFactId(id);
+      return !onScreenProducts.has(f.product) && this.cfg.activeTables.includes(f.table);
+    });
+    if (pIdx >= 0) {
+      const f = parseFactId(this.priorityQueue[pIdx] as FactId);
+      this.priorityQueue.splice(pIdx, 1);
+      if (!this.states.has(f.id)) this.states.set(f.id, initialFactState(f));
+      return this.emit(f, this.bucketOf(this.states.get(f.id) as FactState, now));
+    }
     // 1. Réinjections dues (erreurs récentes, pratique contrastive).
     const dueIdx = this.reinjections.findIndex((r) => r.due <= this.counter + 1);
     if (dueIdx >= 0) {
@@ -244,6 +259,10 @@ export class Scheduler {
   /** Pour les tests et l'affichage de débogage. */
   get pendingReinjections(): readonly Reinjection[] {
     return this.reinjections;
+  }
+
+  get priorityLeft(): number {
+    return this.priorityQueue.length;
   }
 
   get spawnCount(): number {

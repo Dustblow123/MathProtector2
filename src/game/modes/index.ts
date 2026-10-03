@@ -1,4 +1,5 @@
 import { seedFromString } from '../../core/rng';
+export { dueTables } from '../../learning/review';
 import { tableOrder } from '../../learning/curriculum';
 import type { BossKind, ModeConfig, ModeId } from '../types';
 
@@ -46,6 +47,8 @@ function base(id: ModeId, input: ModeInput): ModeConfig {
     scoreMult: 1,
     sector: null,
     maxNewPerWave: 3,
+    priorityFacts: [],
+    waveEvents: true,
   };
 }
 
@@ -126,6 +129,49 @@ export function patrolMode(input: ModeInput): ModeConfig {
   return m;
 }
 
+/** Révision du jour : les faits dus passent en premier, aucun fait nouveau, session courte. */
+export function reviewMode(due: string[], input: ModeInput): ModeConfig {
+  const m = base('review', input);
+  m.wavesTotal = 1;
+  m.asteroidsPerWave = Math.max(8, Math.min(24, due.length + 4));
+  m.newTables = [];
+  m.maxNewPerWave = 0;
+  m.priorityFacts = [...due];
+  m.flow = { initial: 0.2, min: 0.1, max: 0.6 };
+  m.waveEvents = false;
+  m.scoreMult = 1;
+  return m;
+}
+
+/** Clé de semaine ISO, ex. "2026-W40". */
+export function weekKey(d = new Date()): string {
+  const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  const day = date.getUTCDay() || 7;
+  date.setUTCDate(date.getUTCDate() + 4 - day);
+  const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+  const week = Math.ceil(((date.getTime() - yearStart.getTime()) / 86_400_000 + 1) / 7);
+  return `${date.getUTCFullYear()}-W${String(week).padStart(2, '0')}`;
+}
+
+/** Défi hebdomadaire : 2 vagues + 1 boss tiré de la seed parmi les boss déjà vaincus, une tentative par semaine. */
+export function weeklyMode(key: string, bossesDefeated: BossKind[], input: ModeInput): ModeConfig {
+  const seed = seedFromString(key);
+  const m = base('weekly', { ...input, seed });
+  m.wavesTotal = 2;
+  m.asteroidsPerWave = 15;
+  m.earthHp = 3;
+  m.flow = { initial: 0.5, min: 0.5, max: 0.5 };
+  m.reinjectErrors = false;
+  m.scoreMult = 1.6;
+  m.maxNewPerWave = 2;
+  m.waveEvents = false;
+  const pool: BossKind[] = bossesDefeated.length > 0 ? bossesDefeated : ['titan'];
+  const kind = pool[seed % pool.length] ?? 'titan';
+  m.bosses = [kind];
+  m.bossTables = [input.tables[seed % Math.max(1, input.tables.length)] ?? 2];
+  return m;
+}
+
 export function dailyMode(dateKey: string, input: ModeInput): ModeConfig {
   const m = base('daily', { ...input, seed: seedFromString(dateKey) });
   m.wavesTotal = 1;
@@ -135,6 +181,7 @@ export function dailyMode(dateKey: string, input: ModeInput): ModeConfig {
   m.reinjectErrors = false;
   m.scoreMult = 1.3;
   m.maxNewPerWave = 2;
+  m.waveEvents = false;
   return m;
 }
 
