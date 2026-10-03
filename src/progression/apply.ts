@@ -34,18 +34,22 @@ export function applySession(p: Profile, result: SessionResult, facts: Map<FactI
 
   let sectorUnlocked: number | null = null;
   if (result.modeId === 'campaign' && result.sector !== null) {
-    const s = p.sectors[result.sector] ?? { stars: 0, bestScore: 0, attempts: 0 };
+    const prev = p.sectors[result.sector];
+    const wasNew = (prev?.stars ?? 0) === 0;
+    const s = prev ?? { stars: 0, bestScore: 0, attempts: 0 };
     s.attempts++;
     s.bestScore = Math.max(s.bestScore, result.score);
     if (result.victory) {
       s.stars = Math.max(s.stars, result.stars);
       const next = result.sector + 1;
-      if (next < sectorCount(p.maxTable) && p.unlockedSector < next) {
-        p.unlockedSector = next;
-        sectorUnlocked = next;
-      }
+      if (next < sectorCount(p.maxTable) && p.unlockedSector < next) p.unlockedSector = next;
+      // Première victoire sur ce secteur : on signale le secteur suivant (les tables restent libres).
+      if (wasNew && next < sectorCount(p.maxTable)) sectorUnlocked = next;
     }
     p.sectors[result.sector] = s;
+  }
+  if (result.modeId === 'patrol') {
+    if (result.score > p.bestPatrol.score) p.bestPatrol = { score: result.score, waves: result.wavesCleared };
   }
   if (result.modeId === 'survival') {
     if (result.score > p.bestSurvival.score) p.bestSurvival = { score: result.score, waves: result.wavesCleared };
@@ -65,6 +69,7 @@ export function applySession(p: Profile, result: SessionResult, facts: Map<FactI
   const st = p.stats;
   st.sessions++;
   st.destroyed += result.destroyed;
+  st.correct += result.correct;
   st.fluent += Math.round(result.fluentRatio * (result.answered - result.errors));
   st.errors += result.errors;
   st.timeMs += result.durationMs;

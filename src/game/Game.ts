@@ -11,18 +11,20 @@ import type { BossBase } from './bosses/BossBase';
 import { createBoss } from './bosses/index';
 import { COMBO_MILESTONES, INVENTORY_SIZE, POWERUPS, POWERUP_TYPES } from './powerups';
 import { scoreFor, stardustFor, xpFor } from './scoring';
-import type {
-  Asteroid,
-  AsteroidVariant,
-  BossKind,
-  BossTarget,
-  FactOutcome,
-  HintData,
-  ModeConfig,
-  PowerupType,
-  Projectile,
-  SessionResult,
-  Target,
+import {
+  DEFAULT_LOADOUT,
+  type Asteroid,
+  type AsteroidVariant,
+  type BossKind,
+  type BossTarget,
+  type FactOutcome,
+  type HintData,
+  type Loadout,
+  type ModeConfig,
+  type PowerupType,
+  type Projectile,
+  type SessionResult,
+  type Target,
 } from './types';
 
 export const EARTH_Y = WORLD_H - 70;
@@ -52,6 +54,10 @@ export type GameEvents = {
   gameOver: SessionResult;
   victory: SessionResult;
   split: { parent: Asteroid; children: Asteroid[] };
+  /** Effet d'impact d'un projectile spécial. */
+  splash: { kind: Projectile['kind']; x: number; y: number; radius: number };
+  /** Éclair instantané : chemin du canon à la cible (et éventuel rebond). */
+  lightning: { points: { x: number; y: number }[] };
   stardust: { amount: number; x: number; y: number };
   paused: boolean;
 };
@@ -77,6 +83,7 @@ export class Game {
   readonly scheduler: Scheduler;
   readonly flow: FlowController;
   readonly mode: ModeConfig;
+  readonly loadout: Loadout;
 
   time = 0;
   phase: GamePhase = 'intro';
@@ -114,8 +121,9 @@ export class Game {
   private masteredBefore = new Set<FactId>();
   private comboAwarded = new Set<number>();
 
-  constructor(mode: ModeConfig, states: Map<FactId, FactState>) {
+  constructor(mode: ModeConfig, states: Map<FactId, FactState>, loadout: Loadout = DEFAULT_LOADOUT) {
     this.mode = mode;
+    this.loadout = loadout;
     this.rng = new Rng(mode.seed);
     this.scheduler = new Scheduler(
       states,
@@ -130,9 +138,10 @@ export class Game {
       this.rng,
     );
     this.flow = new FlowController({ fluentMs: mode.fluentMs, initial: mode.flow.initial, min: mode.flow.min, max: mode.flow.max });
-    this.earth.maxHp = mode.earthHp || 5;
+    this.earth.maxHp = (mode.earthHp || 5) + (loadout.perk === 'extraHp' && mode.earthHp > 0 ? 1 : 0);
     this.earth.hp = this.earth.maxHp;
     this.earth.invulnerable = mode.earthHp === 0;
+    if (loadout.perk === 'startShield' && !this.earth.invulnerable) this.earth.shield = true;
     this.timeLeft = mode.timeLimitMs;
     this.bossQueue = [...mode.bosses];
     for (const [id, s] of states) if (masteryLevel(s, mode.fluentMs) === 4) this.masteredBefore.add(id);
@@ -334,9 +343,31 @@ export class Game {
     return clamp(this.time - from, 150, 30000);
   }
 
+  /** Vitesse du projectile selon son type et le perk du canon. */
+  get projectileSpeed(): number {
+    const base = { bolt: 1500, missile: 950, lightning: 1500, frost: 1300, twin: 1500, shockwave: 1100 }[this.loadout.projectile];
+    return base * (this.loadout.perk === 'fastShot' ? 1.3 : 1);
+  }
+
   private launchProjectile(target: Target | null): void {
     const angle = target ? Math.atan2(target.y - this.cannon.y, target.x - this.cannon.x) : this.cannon.angle;
-    const speed = 1500;
+    const kind = this.loadout.projectile;
+    if (target && kind === 'lightning') {
+      // Éclair : impact instantané, puis rebond sur une cible de la même table (sans effet sur le modèle).
+      const points = [{ x: this.cannon.x + Math.cos(angle) * 40, y: this.cannon.y + Math.sin(angle) * 40 }, { x: target.x, y: target.y }];
+      const table = target.fact.a;
+      const other = this.asteroids
+        .filter((a) => a.alive && a.id !== target.id && (a.fact.a === table || a.fact.b === table) && dist(a.x, a.y, target.x, target.y) < 280)
+        .sort((a, b) => dist(a.x, a.y, target.x, target.y) - dist(b.x, b.y, target.x, target.y))[0];
+      this.resolveHit(target);
+      if (other) {
+        points.push({ x: other.x, y: other.y });
+        this.destroyTarget(other, true);
+      }
+      this.events.emit('lightning', { points });
+      return;
+    }
+    const speed = this.projectileSpeed;
     this.projectiles.push({
       x: this.cannon.x + Math.cos(angle) * 40,
       y: this.cannon.y + Math.sin(angle) * 40,
@@ -344,9 +375,41 @@ export class Game {
       vy: Math.sin(angle) * speed,
       targetId: target ? target.id : -1,
       fizzle: !target,
-      life: target ? 2 : 0.35,
+      life: target ? 2.5 : 0.35,
       trail: [],
+      kind,
+      age: 0,
+      wobble: this.rng.chance(0.5) ? 1 : -1,
     });
+  }
+
+  /** Effet d'impact des projectiles spéciaux (hors éclair). */
+  private applyImpact(p: Projectile, t: Target): void {
+    const near = (r: number) => this.asteroids.filter((a) => a.alive && a.id !== t.id && dist(a.x, a.y, t.x, t.y) < r);
+    switch (p.kind) {
+      case 'missile':
+        for (const a of near(150)) {
+          a.vy *= 0.35;
+          a.y -= 36;
+        }
+        this.events.emit('splash', { kind: 'missile', x: t.x, y: t.y, radius: 150 });
+        break;
+      case 'frost':
+        for (const a of near(170)) a.slowUntil = this.time + 3000;
+        this.events.emit('splash', { kind: 'frost', x: t.x, y: t.y, radius: 170 });
+        break;
+      case 'shockwave': {
+        const victims = near(120).sort((a, b) => dist(a.x, a.y, t.x, t.y) - dist(b.x, b.y, t.x, t.y)).slice(0, 1);
+        for (const a of victims) this.destroyTarget(a, true);
+        this.events.emit('splash', { kind: 'shockwave', x: t.x, y: t.y, radius: 120 });
+        break;
+      }
+      case 'twin':
+        this.addStardust(1, t.x, t.y);
+        break;
+      default:
+        break;
+    }
   }
 
   // ---------------------------------------------------------------- powerups
@@ -465,6 +528,7 @@ export class Game {
       generation,
       hinted: false,
       scale: generation > 0 ? 1 : 0,
+      slowUntil: 0,
     };
     this.asteroids.push(a);
     this.events.emit('spawn', a);
@@ -474,7 +538,7 @@ export class Game {
   private chooseVariant(specialChance: number): AsteroidVariant {
     if (!this.rng.chance(specialChance)) return 'normal';
     const pool: AsteroidVariant[] = ['fire', 'ice', 'crystal', 'split'];
-    const weights = [3, 2, this.mode.powerups ? 3 : 1, 2];
+    const weights = [3, 2, (this.mode.powerups ? 3 : 1) * (this.loadout.perk === 'crystals' ? 2 : 1), 2];
     return this.rng.weighted(pool, weights);
   }
 
@@ -564,8 +628,9 @@ export class Game {
     for (const a of this.asteroids) {
       if (!a.alive) continue;
       a.scale = Math.min(1, a.scale + dt * 2.5);
-      a.x += a.vx * dt;
-      a.y += a.vy * dt;
+      const slow = this.time < a.slowUntil ? 0.45 : 1;
+      a.x += a.vx * dt * slow;
+      a.y += a.vy * dt * slow;
       a.rotation += a.rotSpeed * dt;
       if (a.x < this.view.left + a.radius) a.vx = Math.abs(a.vx);
       if (a.x > this.view.right - a.radius) a.vx = -Math.abs(a.vx);
@@ -575,21 +640,30 @@ export class Game {
   }
 
   private updateProjectiles(dt: number): void {
-    const speed = 1500;
+    const speed = this.projectileSpeed;
     for (const p of this.projectiles) {
       p.life -= dt;
+      p.age += dt;
       p.trail.push({ x: p.x, y: p.y });
-      if (p.trail.length > 8) p.trail.shift();
+      if (p.trail.length > (p.kind === 'missile' ? 14 : 8)) p.trail.shift();
       const t = p.targetId >= 0 ? this.targets.find((x) => x.id === p.targetId) : undefined;
       if (t) {
         const ang = Math.atan2(t.y - p.y, t.x - p.x);
         p.vx = Math.cos(ang) * speed;
         p.vy = Math.sin(ang) * speed;
+        if (p.kind === 'missile') {
+          // Trajectoire sinueuse : composante latérale qui s'amortit à l'approche de la cible.
+          const d = dist(p.x, p.y, t.x, t.y);
+          const lateral = Math.sin(p.age * 14) * 420 * p.wobble * Math.min(1, d / 220);
+          p.vx += -Math.sin(ang) * lateral;
+          p.vy += Math.cos(ang) * lateral;
+        }
         p.x += p.vx * dt;
         p.y += p.vy * dt;
         if (dist(p.x, p.y, t.x, t.y) < t.radius * 0.8 + 10) {
           p.life = 0;
           this.resolveHit(t);
+          this.applyImpact(p, t);
         }
       } else {
         if (!p.fizzle && p.targetId >= 0) p.life = 0;
@@ -615,7 +689,7 @@ export class Game {
     if (!f || f.type !== 'asteroid') return;
     const a = f as Asteroid;
     if (a.hinted) return;
-    const delay = this.mode.hintsAlways ? 400 : hintDelayMs(this.mode.fluentMs);
+    const delay = (this.mode.hintsAlways ? 400 : hintDelayMs(this.mode.fluentMs)) * (this.loadout.perk === 'quickHint' ? 0.6 : 1);
     if (this.time - Math.max(a.spawnTime, this.lastResolve) >= delay) {
       a.hinted = true;
       this.events.emit('hint', { target: a, hint: this.makeHint(a.fact) });
@@ -661,7 +735,7 @@ export class Game {
       this.gainPowerup(this.randomPowerup());
     }
     this.events.emit('combo', { combo: this.combo, milestone });
-    const score = scoreFor(rt, this.mode.fluentMs, this.combo, this.doubleActive, this.mode.scoreMult);
+    const score = scoreFor(rt, this.mode.fluentMs * (this.loadout.perk === 'wideFluent' ? 1.25 : 1), this.combo, this.doubleActive, this.mode.scoreMult);
     this.destroyTarget(t, false, score, fluent, report);
     if (this.mode.timeBonusMs > 0) this.timeLeft += this.mode.timeBonusMs;
     if (this.focusOverride === t.id) this.focusOverride = null;
@@ -680,7 +754,7 @@ export class Game {
     this.waveDone++;
     if (t.type === 'asteroid') {
       const a = t as Asteroid;
-      const dust = stardustFor(fluent, a.variant);
+      const dust = stardustFor(fluent, a.variant) + (this.loadout.perk === 'stardust' && !byPowerup ? 1 : 0);
       this.addStardust(dust, a.x, a.y);
       if (a.variant === 'crystal' && !byPowerup) this.gainPowerup(this.randomPowerup());
       if (a.variant === 'split' && !byPowerup && a.generation === 0) this.splitAsteroid(a);
@@ -890,6 +964,8 @@ export class Game {
       sector: this.mode.sector,
       score: this.score,
       destroyed: s.destroyed,
+      correct: s.answered - s.errors,
+      powerupKills: s.powerupKills,
       answered: s.answered,
       errors: s.errors,
       hitsTaken: s.hits,

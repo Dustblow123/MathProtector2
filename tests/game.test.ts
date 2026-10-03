@@ -95,7 +95,7 @@ describe('Game (simulation headless)', () => {
     expect(run()).toBe(run());
   });
 
-  for (const kind of ['titan', 'hydra', 'mirror', 'chrono', 'mothership'] as BossKind[]) {
+  for (const kind of ['titan', 'hydra', 'mirror', 'chrono', 'mothership', 'swarm', 'phantom', 'twins'] as BossKind[]) {
     it(`le boss ${kind} peut être vaincu`, () => {
       const game = new Game(bossRushMode([kind], [7], { maxTable: 10, fluentMs: 4000, tables: [2, 5, 7], seed: 6 }), new Map());
       let defeated: BossKind | null = null;

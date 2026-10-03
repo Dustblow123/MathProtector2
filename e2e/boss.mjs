@@ -11,17 +11,17 @@ await page.click('.profile-card');
 await page.fill('.modal input[type=text]', 'Boss');
 await page.click('.modal .btn-primary');
 await page.waitForTimeout(300);
-await page.evaluate(() => { const a = window.mp2; a.p.bossesDefeated = ['titan', 'hydra', 'mirror', 'chrono', 'mothership']; a.p.unlockedSector = 9; a.p.stardust = 999; a.settings.lang = 'fr'; a.persist(true); location.reload(); });
+await page.evaluate(() => { const a = window.mp2; a.p.bossesDefeated = ['titan', 'swarm', 'hydra', 'twins', 'mirror', 'phantom', 'chrono', 'mothership']; a.p.sectors = { 0: { stars: 3, bestScore: 1, attempts: 1 }, 1: { stars: 2, bestScore: 1, attempts: 1 } }; a.p.stardust = 999; a.settings.lang = 'fr'; a.persist(true); location.reload(); });
 await page.waitForTimeout(800);
 await page.screenshot({ path: `${out}/20-menu-fr.png` });
 await page.click('.menu-card.accent');
 await page.waitForTimeout(300);
-await page.click('.mode-card:nth-child(4) .btn');
+await page.click('.mode-card:nth-child(5) .btn');
 await page.waitForTimeout(500);
 const seen = new Set();
 const t0 = Date.now();
 let slow = 0;
-while (Date.now() - t0 < 240000) {
+while (Date.now() - t0 < 420000) {
   const st = await page.evaluate(() => { const g = window.mp2game; const f = g.focus; return { phase: g.phase, boss: g.boss ? g.boss.kind : null, enter: g.boss ? g.boss.enterT : 0, answer: f ? f.answer : null, proj: g.projectiles.length, hp: g.earth.hp }; });
   if (st.phase === 'ended') break;
   if (st.boss && !seen.has(st.boss) && st.enter >= 1) {

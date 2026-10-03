@@ -2,7 +2,7 @@ import { audio } from '../../audio/AudioManager';
 import { TAU } from '../../core/math';
 import { Rng } from '../../core/rng';
 import { t } from '../../i18n';
-import { CATEGORIES, type CannonSkin, type CosmeticCategory, type CosmeticItem, type ExplosionSkin, type NebulaSkin, type PlanetSkin, type ReticleSkin, type TrailSkin, ALL_COSMETICS } from '../../progression/cosmetics';
+import { CATEGORIES, type CannonSkin, type CosmeticCategory, type CosmeticItem, type ExplosionSkin, type NebulaSkin, type PlanetSkin, type ProjectileSkin, type ReticleSkin, type TrailSkin, ALL_COSMETICS } from '../../progression/cosmetics';
 import { buyCosmetic, cosmeticStatus, masteredTables } from '../../progression/unlocks';
 import { drawBarrel } from '../../render/Renderer';
 import { ParticleSystem } from '../../render/particles';
@@ -67,8 +67,19 @@ export function renderHangar(app: App): ScreenResult {
           } else toast(t('hangar.notEnough'));
         }, `btn ${st.available ? 'btn-accent' : ''}`);
       } else action = h('span', { class: 'tag' }, `🔒 ${t('common.locked')}`);
+      let effect = '';
+      if (item.category === 'cannon') effect = t(`perk.${(item.data as CannonSkin).perk}` as 'perk.none');
+      if (item.category === 'projectile') effect = t(`proj.${(item.data as ProjectileSkin).kind}` as 'proj.bolt');
       grid.appendChild(
-        h('div', { class: `item-card ${equipped ? 'equipped' : ''} ${st.owned ? '' : 'locked'}` }, cv, h('div', { class: 'name' }, t(item.nameKey as 'cos.cannon_classic')), h('div', { class: 'cond' }, st.owned ? '' : condText(item)), action),
+        h(
+          'div',
+          { class: `item-card ${equipped ? 'equipped' : ''} ${st.owned ? '' : 'locked'}` },
+          cv,
+          h('div', { class: 'name' }, t(item.nameKey as 'cos.cannon_classic')),
+          effect ? h('div', { class: 'small', style: 'color:var(--cyan)' }, effect) : '',
+          h('div', { class: 'cond' }, st.owned ? '' : condText(item)),
+          action,
+        ),
       );
     }
   };
@@ -128,6 +139,73 @@ function makePreview(cv: HTMLCanvasElement, item: CosmeticItem): () => void {
         c.scale(1.4, 1.4);
         drawBarrel(c, skin);
         c.restore();
+        break;
+      }
+      case 'projectile': {
+        const skin = item.data as ProjectileSkin;
+        const x0 = 30;
+        const y0 = hgt - 24;
+        const x1 = w - 60;
+        const y1 = 40;
+        const prog = (tt * 0.6) % 1.3;
+        const pr = Math.min(1, prog);
+        c.globalCompositeOperation = 'lighter';
+        c.strokeStyle = hexToRgba(skin.color, 0.9);
+        c.lineWidth = 4;
+        c.lineCap = 'round';
+        c.beginPath();
+        c.moveTo(x0, y0);
+        const steps = 30;
+        let hx = x0;
+        let hy = y0;
+        for (let i = 1; i <= steps * pr; i++) {
+          const u = i / steps;
+          let px = x0 + (x1 - x0) * u;
+          let py = y0 + (y1 - y0) * u;
+          if (skin.kind === 'missile') {
+            const lat = Math.sin(u * 14) * 26 * (1 - u);
+            px += -(y1 - y0) / 300 * lat;
+            py += (x1 - x0) / 300 * lat;
+          }
+          if (skin.kind === 'lightning') {
+            px += Math.sin(i * 7.3) * 9;
+            py += Math.cos(i * 5.1) * 9;
+          }
+          if (skin.kind === 'twin') {
+            px += 5;
+            py += 5;
+          }
+          c.lineTo(px, py);
+          hx = px;
+          hy = py;
+        }
+        c.stroke();
+        if (skin.kind === 'twin') {
+          c.beginPath();
+          c.moveTo(x0 - 10, y0 - 10);
+          c.lineTo(hx - 10, hy - 10);
+          c.stroke();
+        }
+        // Cible
+        c.globalCompositeOperation = 'source-over';
+        c.fillStyle = '#4a4660';
+        c.beginPath();
+        c.arc(x1, y1, 22, 0, TAU);
+        c.fill();
+        c.fillStyle = '#fff';
+        c.beginPath();
+        c.arc(hx, hy, 5, 0, TAU);
+        c.fill();
+        if (prog > 1) {
+          const k = (prog - 1) / 0.3;
+          c.globalCompositeOperation = 'lighter';
+          c.strokeStyle = hexToRgba(skin.color2, 1 - k);
+          c.lineWidth = 3;
+          c.beginPath();
+          c.arc(x1, y1, 22 + k * (skin.kind === 'bolt' || skin.kind === 'twin' ? 20 : 60), 0, TAU);
+          c.stroke();
+          c.globalCompositeOperation = 'source-over';
+        }
         break;
       }
       case 'trail': {

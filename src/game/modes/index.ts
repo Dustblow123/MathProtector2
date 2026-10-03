@@ -11,7 +11,7 @@ export interface ModeInput {
 }
 
 /** Boss associé à chaque secteur de campagne (index dans l'ordre pédagogique). */
-export const SECTOR_BOSS: readonly BossKind[] = ['titan', 'titan', 'titan', 'hydra', 'hydra', 'mirror', 'mirror', 'chrono', 'chrono', 'mothership', 'chrono', 'mothership'];
+export const SECTOR_BOSS: readonly BossKind[] = ['titan', 'swarm', 'hydra', 'twins', 'mirror', 'phantom', 'chrono', 'swarm', 'twins', 'mothership', 'phantom', 'chrono'];
 
 export const CAMPAIGN_WAVES = 5;
 
@@ -49,13 +49,17 @@ function base(id: ModeId, input: ModeInput): ModeConfig {
   };
 }
 
-/** Campagne : le secteur `sector` travaille sa table, avec révision des tables précédentes. */
-export function campaignMode(sector: number, input: Omit<ModeInput, 'tables'>): ModeConfig {
+/**
+ * Campagne : le secteur `sector` travaille sa table, avec révision des tables déjà terminées
+ * (`reviewTables`, libre : les enfants n'apprennent pas les tables dans l'ordre).
+ */
+export function campaignMode(sector: number, input: Omit<ModeInput, 'tables'> & { reviewTables?: number[] }): ModeConfig {
   const order = tableOrder(input.maxTable);
   const table = order[sector] ?? 1;
-  const tables = order.slice(0, sector + 1);
+  const review = (input.reviewTables ?? []).filter((t) => t !== table && t <= input.maxTable);
+  const tables = [...review, table];
   const m = base('campaign', { ...input, tables });
-  m.newTables = tables; // les faits non vus des tables précédentes peuvent encore être introduits
+  m.newTables = [table]; // seuls les faits de la table du secteur sont introduits ; les autres sont révisées
   m.wavesTotal = CAMPAIGN_WAVES;
   m.asteroidsPerWave = 10;
   m.flow = { initial: Math.min(0.5, 0.08 + sector * 0.04), min: 0, max: Math.min(1, 0.55 + sector * 0.05) };
@@ -107,6 +111,18 @@ export function bossRushMode(bosses: BossKind[], bossTables: number[], input: Mo
   m.bossTables = [...bossTables];
   m.flow = { initial: 0.4, min: 0.3, max: 0.8 };
   m.scoreMult = 1.5;
+  return m;
+}
+
+/** Patrouille : révision automatique des tables terminées en campagne, sans fait nouveau. */
+export function patrolMode(input: ModeInput): ModeConfig {
+  const m = base('patrol', input);
+  m.newTables = [];
+  m.maxNewPerWave = 0;
+  m.asteroidsPerWave = 12;
+  m.flow = { initial: 0.25, min: 0.15, max: 0.85 };
+  m.rampPerWave = 0.02;
+  m.scoreMult = 1.1;
   return m;
 }
 

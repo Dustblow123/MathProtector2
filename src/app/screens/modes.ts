@@ -1,5 +1,6 @@
 import { audio } from '../../audio/AudioManager';
-import { SECTOR_BOSS, blitzMode, bossRushMode, dailyMode, dateKey, practiceMode, sectorTable, survivalMode } from '../../game/modes/index';
+import { SECTOR_BOSS, blitzMode, bossRushMode, dailyMode, dateKey, patrolMode, practiceMode, sectorTable, survivalMode } from '../../game/modes/index';
+import { BOSS_KINDS } from '../../game/bosses/index';
 import type { BossKind, ModeConfig } from '../../game/types';
 import { t } from '../../i18n';
 import { tableOrder } from '../../learning/curriculum';
@@ -40,11 +41,13 @@ export function renderModes(app: App): ScreenResult {
     h('div', { class: 'mode-card' }, h('div', { class: 'title' }, h('span', null, icon), title), h('div', { class: 'desc' }, desc), best ? h('div', { class: 'small', style: 'color:var(--gold)' }, best) : '', action);
 
   const defeated = p.bossesDefeated;
-  const rushBosses: BossKind[] = (['titan', 'hydra', 'mirror', 'chrono', 'mothership'] as BossKind[]).filter((b) => defeated.includes(b));
+  const rushBosses: BossKind[] = BOSS_KINDS.filter((b) => defeated.includes(b));
+  const completed = app.completedTables();
   const rushTables = rushBosses.map((b) => {
-    let best = 0;
-    for (let i = 0; i <= Math.min(p.unlockedSector, SECTOR_BOSS.length - 1); i++) if (SECTOR_BOSS[i] === b) best = i;
-    return sectorTable(best, p.maxTable);
+    // Table du dernier secteur terminé qui affronte ce boss, sinon la première table du boss.
+    let best = SECTOR_BOSS.indexOf(b);
+    for (let i = 0; i < SECTOR_BOSS.length; i++) if (SECTOR_BOSS[i] === b && completed.includes(sectorTable(i, p.maxTable))) best = i;
+    return sectorTable(Math.max(0, best), p.maxTable);
   });
   const dailyKey = dateKey();
   const dailyDone = p.daily?.lastDay === dailyKey;
@@ -60,6 +63,15 @@ export function renderModes(app: App): ScreenResult {
       h(
         'div',
         { class: 'grid' },
+        card(
+          '🛰️',
+          t('modes.patrol'),
+          completed.length > 0 ? `${t('modes.patrol.desc')} (${completed.slice().sort((a, b) => a - b).join(', ')})` : t('modes.patrol.locked'),
+          p.bestPatrol.score > 0 ? t('modes.bestSurvival', { score: p.bestPatrol.score, waves: p.bestPatrol.waves }) : '',
+          completed.length > 0
+            ? button(t('common.play'), () => { audio.click(); const build = () => patrolMode({ maxTable: p.maxTable, fluentMs: app.fluentMs(), tables: completed }); app.go('game', { mode: build(), title: t('modes.patrol'), rebuild: build }); }, 'btn btn-accent')
+            : button(t('common.locked'), () => undefined, 'btn'),
+        ),
         card('♾️', t('modes.survival'), t('modes.survival.desc'), p.bestSurvival.score > 0 ? t('modes.bestSurvival', { score: p.bestSurvival.score, waves: p.bestSurvival.waves }) : '', button(t('common.play'), () => launch(t('modes.survival'), () => survivalMode(input())), 'btn btn-primary')),
         card('⚡', t('modes.blitz'), t('modes.blitz.desc'), p.bestBlitz.score > 0 ? t('modes.bestBlitz', { score: p.bestBlitz.score, n: p.bestBlitz.destroyed }) : '', button(t('common.play'), () => launch(t('modes.blitz'), () => blitzMode(input())), 'btn btn-primary')),
         card('🧘', t('modes.practice'), t('modes.practice.desc'), '', button(t('common.play'), () => launch(t('modes.practice'), () => practiceMode(input())), 'btn btn-primary')),
@@ -80,6 +92,6 @@ export function renderModes(app: App): ScreenResult {
       ),
     ),
   );
-  if (dailyDone) (el.querySelectorAll('.mode-card .btn')[4] as HTMLButtonElement | undefined)?.setAttribute('disabled', 'true');
+  if (dailyDone) (el.querySelectorAll('.mode-card .btn')[5] as HTMLButtonElement | undefined)?.setAttribute('disabled', 'true');
   return { el };
 }

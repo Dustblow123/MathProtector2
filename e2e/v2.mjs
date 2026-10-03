@@ -1,0 +1,56 @@
+import { chromium } from '@playwright/test';
+const out = process.argv[2] ?? '/tmp/shots';
+const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
+const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+const errors = [];
+page.on('pageerror', (e) => errors.push('PAGEERROR ' + e.message));
+page.on('console', (m) => { if (m.type() === 'error') errors.push('console: ' + m.text()); });
+await page.goto('http://localhost:4173/');
+await page.waitForTimeout(400);
+await page.click('.profile-card');
+await page.fill('.modal input[type=text]', 'V2');
+await page.click('.modal .btn-primary');
+await page.waitForTimeout(300);
+await page.evaluate(() => { const a = window.mp2; a.p.sectors = { 1: { stars: 3, bestScore: 1, attempts: 1 }, 4: { stars: 2, bestScore: 1, attempts: 1 } }; a.p.stardust = 2000; a.p.cosmeticsOwned.push('proj_missile'); a.p.equipped.projectile = 'proj_missile'; a.p.equipped.cannon = 'cannon_twin'; a.p.cosmeticsOwned.push('cannon_twin'); a.settings.lang = 'fr'; a.persist(true); location.reload(); });
+await page.waitForTimeout(700);
+await page.click('.menu-card.big');
+await page.waitForTimeout(400);
+await page.screenshot({ path: `${out}/40-campaign-free.png` });
+// Lancer le secteur 8 (table 7) directement
+await page.click('.sector:nth-child(8)');
+await page.waitForTimeout(3500);
+const cfg = await page.evaluate(() => ({ tables: window.mp2game.mode.tables, newTables: window.mp2game.mode.newTables, loadout: window.mp2game.loadout }));
+console.log('campaign free', JSON.stringify(cfg));
+for (let i = 0; i < 6; i++) {
+  const ans = await page.evaluate(() => { const g = window.mp2game; const f = g.focus; return f && g.projectiles.length === 0 ? f.answer : null; });
+  if (ans !== null) { await page.keyboard.type(String(ans)); await page.keyboard.press('Enter'); await page.waitForTimeout(150); await page.screenshot({ path: `${out}/41-missile-${i}.png` }); }
+  await page.waitForTimeout(500);
+}
+await page.keyboard.press('Escape');
+await page.click('.overlay .btn-ghost');
+await page.click('.modal .btn-danger');
+await page.waitForTimeout(500);
+await page.click('.btn-ghost.btn-big');
+await page.click('.menu-card.accent');
+await page.waitForTimeout(400);
+await page.screenshot({ path: `${out}/42-modes-patrol.png`, fullPage: true });
+await page.click('.mode-card:nth-child(1) .btn');
+await page.waitForTimeout(3000);
+const patrol = await page.evaluate(() => ({ id: window.mp2game.mode.id, tables: window.mp2game.mode.tables }));
+console.log('patrol', JSON.stringify(patrol));
+await page.screenshot({ path: `${out}/43-patrol.png` });
+await page.keyboard.press('Escape');
+await page.click('.overlay .btn-ghost');
+await page.click('.modal .btn-danger');
+await page.waitForTimeout(500);
+await page.click('.btn-ghost.btn-big');
+await page.click('.menu-card:nth-child(3)');
+await page.waitForTimeout(400);
+await page.click('.tabs button:nth-child(2)');
+await page.waitForTimeout(600);
+await page.screenshot({ path: `${out}/44-hangar-projectiles.png`, fullPage: true });
+await page.click('.tabs button:nth-child(1)');
+await page.waitForTimeout(400);
+await page.screenshot({ path: `${out}/45-hangar-cannons.png`, fullPage: true });
+console.log(JSON.stringify(errors));
+await browser.close();

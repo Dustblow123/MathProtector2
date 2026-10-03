@@ -72,7 +72,7 @@ export function evaluateAchievements(ctx: AchievementContext, already: ReadonlyS
   add('fluent_100', ctx.totals.fluent >= 100);
   add('destroyed_500', ctx.totals.destroyed >= 500);
   add('destroyed_2000', ctx.totals.destroyed >= 2000);
-  add('all_bosses', ['titan', 'hydra', 'mirror', 'chrono', 'mothership'].every((b) => ctx.bossesEverDefeated.includes(b)));
+  add('all_bosses', ['titan', 'swarm', 'hydra', 'twins', 'mirror', 'phantom', 'chrono', 'mothership'].every((b) => ctx.bossesEverDefeated.includes(b)));
   add('collector', ctx.cosmeticsOwned >= 15);
   add('night_owl', ctx.hour >= 21 || ctx.hour < 6);
   return got;

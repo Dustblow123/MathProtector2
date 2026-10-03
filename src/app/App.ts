@@ -123,10 +123,26 @@ export class App {
     return FLUENT_MS[this.p.agePreset];
   }
 
-  /** Tables débloquées en campagne (ordre pédagogique). */
-  unlockedTables(): number[] {
+  /** Tables terminées en campagne (au moins une étoile), dans l'ordre pédagogique. */
+  completedTables(): number[] {
     const p = this.p;
-    return tableOrder(p.maxTable).slice(0, p.unlockedSector + 1);
+    return tableOrder(p.maxTable).filter((_, i) => (p.sectors[i]?.stars ?? 0) > 0);
+  }
+
+  /** Secteur recommandé : premier secteur sans étoile dans l'ordre pédagogique. */
+  recommendedSector(): number {
+    const p = this.p;
+    const n = tableOrder(p.maxTable).length;
+    for (let i = 0; i < n; i++) if ((p.sectors[i]?.stars ?? 0) === 0) return i;
+    return n - 1;
+  }
+
+  /** Tables proposées par défaut dans les modes libres : terminées + celle du secteur recommandé. */
+  unlockedTables(): number[] {
+    const order = tableOrder(this.p.maxTable);
+    const done = this.completedTables();
+    const rec = order[this.recommendedSector()];
+    return rec !== undefined && !done.includes(rec) ? [...done, rec] : done;
   }
 
   go<K extends ScreenName>(name: K, params: ScreenParams[K]): void {

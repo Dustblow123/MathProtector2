@@ -44,8 +44,8 @@ export function renderDashboard(app: App): ScreenResult {
 
   // --- Stats
   const st = p.stats;
-  const answered = st.destroyed + st.errors;
-  const accuracy = answered > 0 ? Math.round((st.destroyed / answered) * 100) : 0;
+  const answered = st.correct + st.errors;
+  const accuracy = answered > 0 ? Math.round((st.correct / answered) * 100) : 0;
   const rts = [...facts.values()].filter((s) => s.rtEma > 0).map((s) => s.rtEma);
   const avgRt = rts.length > 0 ? rts.reduce((a, b) => a + b, 0) / rts.length : 0;
   const last7 = st.days.slice(-7);
@@ -91,7 +91,7 @@ export function renderDashboard(app: App): ScreenResult {
   const maxSeg = h('div', { class: 'seg' });
   const renderMax = () => {
     clear(maxSeg);
-    for (const v of [10, 12]) maxSeg.appendChild(h('button', { type: 'button', class: p.maxTable === v ? 'sel' : '', onClick: () => { p.maxTable = v; p.unlockedSector = Math.min(p.unlockedSector, tableOrder(v).length - 1); app.persist(true); app.go('dashboard', undefined); } }, String(v)));
+    for (const v of [10, 12]) maxSeg.appendChild(h('button', { type: 'button', class: p.maxTable === v ? 'sel' : '', onClick: () => { p.maxTable = v; app.persist(true); app.go('dashboard', undefined); } }, String(v)));
   };
   renderMax();
   const ageSeg = h('div', { class: 'seg' });

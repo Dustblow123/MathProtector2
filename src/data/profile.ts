@@ -41,6 +41,7 @@ export interface Profile {
   equipped: Record<CosmeticCategory, string>;
   bossesDefeated: BossKind[];
   bestSurvival: { score: number; waves: number };
+  bestPatrol: { score: number; waves: number };
   bestBlitz: { score: number; destroyed: number };
   daily: { lastDay: string; score: number; medal: string } | null;
   /** Tables choisies par le parent comme prioritaires (vide = automatique). */
@@ -48,6 +49,8 @@ export interface Profile {
   stats: {
     sessions: number;
     destroyed: number;
+    /** Réponses justes (hors powerups), base de la précision. */
+    correct: number;
     fluent: number;
     errors: number;
     timeMs: number;
@@ -79,10 +82,11 @@ export function createProfile(name: string, avatar: string, agePreset: AgePreset
     equipped: { ...DEFAULT_EQUIPPED },
     bossesDefeated: [],
     bestSurvival: { score: 0, waves: 0 },
+    bestPatrol: { score: 0, waves: 0 },
     bestBlitz: { score: 0, destroyed: 0 },
     daily: null,
     focusTables: [],
-    stats: { sessions: 0, destroyed: 0, fluent: 0, errors: 0, timeMs: 0, lastPlayedDay: '', streakDays: 0, confusions: {}, days: [] },
+    stats: { sessions: 0, destroyed: 0, correct: 0, fluent: 0, errors: 0, timeMs: 0, lastPlayedDay: '', streakDays: 0, confusions: {}, days: [] },
   };
 }
 

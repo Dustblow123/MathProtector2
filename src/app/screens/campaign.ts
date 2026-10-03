@@ -13,11 +13,11 @@ export function renderCampaign(app: App): ScreenResult {
   const facts = factsMap(p);
   const fluent = app.fluentMs();
   const n = sectorCount(p.maxTable);
+  const recommended = app.recommendedSector();
   const galaxy = h('div', { class: 'galaxy' });
 
   for (let i = 0; i < n; i++) {
     const table = sectorTable(i, p.maxTable);
-    const locked = i > p.unlockedSector;
     const prog = p.sectors[i];
     const stars = prog?.stars ?? 0;
     const stats = tableStats(facts, table, p.maxTable, fluent);
@@ -27,16 +27,14 @@ export function renderCampaign(app: App): ScreenResult {
     const card = h(
       'button',
       {
-        class: `sector ${locked ? 'locked' : ''} ${i === p.unlockedSector ? 'current' : ''}`,
-        disabled: locked,
+        class: `sector ${i === recommended ? 'current' : ''}`,
         onClick: () => {
-          if (locked) return;
           audio.click();
           launch(i);
         },
       },
-      h('span', { class: 'tag' }, t('common.sector', { n: i + 1 })),
-      h('div', { class: 'planet', style: `background: radial-gradient(circle at 35% 30%, #fff8 0, ${color} 35%, #05081a 110%)` }, locked ? '🔒' : String(table)),
+      h('span', { class: `tag ${i === recommended ? 'tag-gold' : ''}` }, i === recommended ? t('campaign.recommended') : t('common.sector', { n: i + 1 })),
+      h('div', { class: 'planet', style: `background: radial-gradient(circle at 35% 30%, #fff8 0, ${color} 35%, #05081a 110%)` }, String(table)),
       h('span', { class: 'label' }, t('common.table', { n: table })),
       h('span', { class: 'stars' }, [1, 2, 3].map((k) => h('span', { class: k <= stars ? '' : 'off' }, '★'))),
       h('span', { class: 'boss' }, `👾 ${t(`boss.${boss}`)}`),
@@ -47,11 +45,11 @@ export function renderCampaign(app: App): ScreenResult {
   }
 
   function launch(sector: number): void {
-    const build = () => campaignMode(sector, { maxTable: p.maxTable, fluentMs: app.fluentMs() });
+    const build = () => campaignMode(sector, { maxTable: p.maxTable, fluentMs: app.fluentMs(), reviewTables: app.completedTables() });
     app.go('game', { mode: build(), title: `${t('common.sector', { n: sector + 1 })} · ${t('common.table', { n: sectorTable(sector, p.maxTable) })}`, rebuild: build });
   }
 
-  const allDone = p.unlockedSector >= n - 1 && (p.sectors[n - 1]?.stars ?? 0) > 0;
+  const allDone = app.completedTables().length === n;
   const el = h(
     'div',
     { class: 'screen' },
@@ -61,7 +59,7 @@ export function renderCampaign(app: App): ScreenResult {
       h('div', { class: 'topbar' }, button(`← ${t('common.back')}`, () => app.go('menu', undefined), 'btn btn-ghost'), h('h2', null, t('campaign.title')), h('span', { class: 'muted small' }, t('campaign.waves', { n: CAMPAIGN_WAVES }))),
       allDone ? h('div', { class: 'panel' }, `🏆 ${t('campaign.complete')}`) : '',
       galaxy,
-      h('p', { class: 'muted small' }, t('campaign.lockedHint')),
+      h('p', { class: 'muted small' }, t('campaign.freeHint')),
     ),
   );
   return { el };

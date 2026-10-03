@@ -32,6 +32,8 @@ export interface Asteroid extends Target {
   hinted: boolean;
   /** Échelle d'apparition (0 → 1). */
   scale: number;
+  /** Ralenti (projectile givrant) jusqu'à ce temps de jeu (ms). */
+  slowUntil: number;
 }
 
 export interface BossTarget extends Target {
@@ -41,7 +43,23 @@ export interface BossTarget extends Target {
   dy: number;
   /** Temps limite (ms) pour le boss Chrono, 0 sinon. */
   deadline: number;
+  /** Étiquette masquée (boss Fantôme) : la réponse reste acceptée. */
+  hidden: boolean;
+  /** Cible jumelle (boss Jumeaux) : détruite en même temps. */
+  twinId: number;
 }
+
+export type ProjectileKind = 'bolt' | 'missile' | 'lightning' | 'frost' | 'twin' | 'shockwave';
+
+export type CannonPerk = 'none' | 'stardust' | 'fastShot' | 'quickHint' | 'extraHp' | 'wideFluent' | 'crystals' | 'startShield';
+
+/** Équipement à effet de gameplay choisi dans le Hangar. */
+export interface Loadout {
+  projectile: ProjectileKind;
+  perk: CannonPerk;
+}
+
+export const DEFAULT_LOADOUT: Loadout = { projectile: 'bolt', perk: 'none' };
 
 export interface Projectile {
   x: number;
@@ -53,13 +71,18 @@ export interface Projectile {
   fizzle: boolean;
   life: number;
   trail: { x: number; y: number }[];
+  kind: ProjectileKind;
+  /** Temps écoulé depuis le tir (s), pour les trajectoires courbes. */
+  age: number;
+  /** Phase de l'ondulation (missile). */
+  wobble: number;
 }
 
 export type PowerupType = 'freeze' | 'shield' | 'nova' | 'laser' | 'double' | 'oracle';
 
-export type ModeId = 'campaign' | 'survival' | 'blitz' | 'practice' | 'bossRush' | 'daily';
+export type ModeId = 'campaign' | 'survival' | 'blitz' | 'practice' | 'bossRush' | 'daily' | 'patrol';
 
-export type BossKind = 'titan' | 'hydra' | 'mirror' | 'chrono' | 'mothership';
+export type BossKind = 'titan' | 'hydra' | 'mirror' | 'chrono' | 'mothership' | 'swarm' | 'phantom' | 'twins';
 
 export interface ModeConfig {
   id: ModeId;
@@ -107,7 +130,12 @@ export interface SessionResult {
   modeId: ModeId;
   sector: number | null;
   score: number;
+  /** Cibles détruites, powerups compris. */
   destroyed: number;
+  /** Réponses justes du joueur (hors powerups). */
+  correct: number;
+  /** Cibles détruites par un powerup (n'entrent pas dans la précision). */
+  powerupKills: number;
   answered: number;
   errors: number;
   hitsTaken: number;

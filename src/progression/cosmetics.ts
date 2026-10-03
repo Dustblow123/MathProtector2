@@ -1,4 +1,8 @@
-export type CosmeticCategory = 'cannon' | 'trail' | 'explosion' | 'planet' | 'nebula' | 'reticle';
+export type CosmeticCategory = 'cannon' | 'projectile' | 'trail' | 'explosion' | 'planet' | 'nebula' | 'reticle';
+
+export type CannonPerk = 'none' | 'stardust' | 'fastShot' | 'quickHint' | 'extraHp' | 'wideFluent' | 'crystals' | 'startShield';
+
+export type ProjectileKind = 'bolt' | 'missile' | 'lightning' | 'frost' | 'twin' | 'shockwave';
 
 export type UnlockRule =
   | { type: 'default' }
@@ -14,6 +18,14 @@ export interface CannonSkin {
   base: string;
   accent: string;
   glow: string;
+  /** Bonus de gameplay propre au canon. */
+  perk: CannonPerk;
+}
+
+export interface ProjectileSkin {
+  kind: ProjectileKind;
+  color: string;
+  color2: string;
 }
 
 export interface TrailSkin {
@@ -56,14 +68,23 @@ export interface CosmeticItem<T = unknown> {
 }
 
 export const CANNONS: CosmeticItem<CannonSkin>[] = [
-  { id: 'cannon_classic', category: 'cannon', nameKey: 'cos.cannon_classic', unlock: { type: 'default' }, data: { shape: 'classic', base: '#9fb3d9', accent: '#38e8ff', glow: '#38e8ff' } },
-  { id: 'cannon_twin', category: 'cannon', nameKey: 'cos.cannon_twin', unlock: { type: 'buy', price: 150 }, data: { shape: 'twin', base: '#b8c4e6', accent: '#ff4fd8', glow: '#ff4fd8' } },
-  { id: 'cannon_retro', category: 'cannon', nameKey: 'cos.cannon_retro', unlock: { type: 'level', level: 5 }, data: { shape: 'retro', base: '#d9c7a0', accent: '#ff9f43', glow: '#ffd166' } },
-  { id: 'cannon_crystal', category: 'cannon', nameKey: 'cos.cannon_crystal', unlock: { type: 'table', table: 5 }, data: { shape: 'crystal', base: '#cfe9ff', accent: '#8a6cff', glow: '#b39cff' } },
-  { id: 'cannon_heavy', category: 'cannon', nameKey: 'cos.cannon_heavy', unlock: { type: 'boss', kind: 'hydra' }, data: { shape: 'heavy', base: '#7f8aa8', accent: '#5cf2a6', glow: '#5cf2a6' } },
-  { id: 'cannon_needle', category: 'cannon', nameKey: 'cos.cannon_needle', unlock: { type: 'achievement', id: 'combo_35' }, data: { shape: 'needle', base: '#e6ecff', accent: '#38e8ff', glow: '#ffffff' } },
-  { id: 'cannon_orb', category: 'cannon', nameKey: 'cos.cannon_orb', unlock: { type: 'buy', price: 600 }, data: { shape: 'orb', base: '#3b2d6b', accent: '#ff4fd8', glow: '#c86bff' } },
-  { id: 'cannon_phoenix', category: 'cannon', nameKey: 'cos.cannon_phoenix', unlock: { type: 'boss', kind: 'mothership' }, data: { shape: 'phoenix', base: '#ffb347', accent: '#ff5d73', glow: '#ffd166' } },
+  { id: 'cannon_classic', category: 'cannon', nameKey: 'cos.cannon_classic', unlock: { type: 'default' }, data: { shape: 'classic', base: '#9fb3d9', accent: '#38e8ff', glow: '#38e8ff', perk: 'none' } },
+  { id: 'cannon_twin', category: 'cannon', nameKey: 'cos.cannon_twin', unlock: { type: 'buy', price: 150 }, data: { shape: 'twin', base: '#b8c4e6', accent: '#ff4fd8', glow: '#ff4fd8', perk: 'stardust' } },
+  { id: 'cannon_retro', category: 'cannon', nameKey: 'cos.cannon_retro', unlock: { type: 'level', level: 5 }, data: { shape: 'retro', base: '#d9c7a0', accent: '#ff9f43', glow: '#ffd166', perk: 'fastShot' } },
+  { id: 'cannon_crystal', category: 'cannon', nameKey: 'cos.cannon_crystal', unlock: { type: 'table', table: 5 }, data: { shape: 'crystal', base: '#cfe9ff', accent: '#8a6cff', glow: '#b39cff', perk: 'quickHint' } },
+  { id: 'cannon_heavy', category: 'cannon', nameKey: 'cos.cannon_heavy', unlock: { type: 'boss', kind: 'hydra' }, data: { shape: 'heavy', base: '#7f8aa8', accent: '#5cf2a6', glow: '#5cf2a6', perk: 'extraHp' } },
+  { id: 'cannon_needle', category: 'cannon', nameKey: 'cos.cannon_needle', unlock: { type: 'achievement', id: 'combo_35' }, data: { shape: 'needle', base: '#e6ecff', accent: '#38e8ff', glow: '#ffffff', perk: 'wideFluent' } },
+  { id: 'cannon_orb', category: 'cannon', nameKey: 'cos.cannon_orb', unlock: { type: 'buy', price: 600 }, data: { shape: 'orb', base: '#3b2d6b', accent: '#ff4fd8', glow: '#c86bff', perk: 'crystals' } },
+  { id: 'cannon_phoenix', category: 'cannon', nameKey: 'cos.cannon_phoenix', unlock: { type: 'boss', kind: 'mothership' }, data: { shape: 'phoenix', base: '#ffb347', accent: '#ff5d73', glow: '#ffd166', perk: 'startShield' } },
+];
+
+export const PROJECTILES: CosmeticItem<ProjectileSkin>[] = [
+  { id: 'proj_bolt', category: 'projectile', nameKey: 'cos.proj_bolt', unlock: { type: 'default' }, data: { kind: 'bolt', color: '#38e8ff', color2: '#ffffff' } },
+  { id: 'proj_missile', category: 'projectile', nameKey: 'cos.proj_missile', unlock: { type: 'buy', price: 250 }, data: { kind: 'missile', color: '#ff9f43', color2: '#ffd166' } },
+  { id: 'proj_frost', category: 'projectile', nameKey: 'cos.proj_frost', unlock: { type: 'table', table: 3 }, data: { kind: 'frost', color: '#bfefff', color2: '#7fe3ff' } },
+  { id: 'proj_twin', category: 'projectile', nameKey: 'cos.proj_twin', unlock: { type: 'level', level: 7 }, data: { kind: 'twin', color: '#5cf2a6', color2: '#ffffff' } },
+  { id: 'proj_shockwave', category: 'projectile', nameKey: 'cos.proj_shockwave', unlock: { type: 'boss', kind: 'twins' }, data: { kind: 'shockwave', color: '#ff4fd8', color2: '#ffffff' } },
+  { id: 'proj_lightning', category: 'projectile', nameKey: 'cos.proj_lightning', unlock: { type: 'achievement', id: 'combo_20' }, data: { kind: 'lightning', color: '#ffd166', color2: '#ffffff' } },
 ];
 
 export const TRAILS: CosmeticItem<TrailSkin>[] = [
@@ -110,12 +131,13 @@ export const RETICLES: CosmeticItem<ReticleSkin>[] = [
   { id: 'ret_cross', category: 'reticle', nameKey: 'cos.ret_cross', unlock: { type: 'achievement', id: 'blitz_40' }, data: { style: 'crosshair', color: '#ffd166' } },
 ];
 
-export const ALL_COSMETICS: CosmeticItem[] = [...CANNONS, ...TRAILS, ...EXPLOSIONS, ...PLANETS, ...NEBULAE, ...RETICLES];
+export const ALL_COSMETICS: CosmeticItem[] = [...CANNONS, ...PROJECTILES, ...TRAILS, ...EXPLOSIONS, ...PLANETS, ...NEBULAE, ...RETICLES];
 
-export const CATEGORIES: CosmeticCategory[] = ['cannon', 'trail', 'explosion', 'planet', 'nebula', 'reticle'];
+export const CATEGORIES: CosmeticCategory[] = ['cannon', 'projectile', 'trail', 'explosion', 'planet', 'nebula', 'reticle'];
 
 export const DEFAULT_EQUIPPED: Record<CosmeticCategory, string> = {
   cannon: 'cannon_classic',
+  projectile: 'proj_bolt',
   trail: 'trail_cyan',
   explosion: 'expl_burst',
   planet: 'planet_earth',
@@ -125,6 +147,7 @@ export const DEFAULT_EQUIPPED: Record<CosmeticCategory, string> = {
 
 export interface EquippedSkins {
   cannon: CannonSkin;
+  projectile: ProjectileSkin;
   trail: TrailSkin;
   explosion: ExplosionSkin;
   planet: PlanetSkin;
@@ -143,6 +166,7 @@ export function resolveSkins(equipped: Partial<Record<CosmeticCategory, string>>
   };
   return {
     cannon: get('cannon', CANNONS),
+    projectile: get('projectile', PROJECTILES),
     trail: get('trail', TRAILS),
     explosion: get('explosion', EXPLOSIONS),
     planet: get('planet', PLANETS),

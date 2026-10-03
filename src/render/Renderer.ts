@@ -5,8 +5,9 @@ import { EARTH_Y, type Game } from '../game/Game';
 import type { BossBase } from '../game/bosses/BossBase';
 import type { Chrono } from '../game/bosses/Chrono';
 import type { Mothership } from '../game/bosses/Mothership';
+import type { Phantom } from '../game/bosses/Phantom';
 import { POWERUPS } from '../game/powerups';
-import type { Asteroid, BossTarget, HintData, Target } from '../game/types';
+import type { Asteroid, BossTarget, HintData, Projectile, Target } from '../game/types';
 import { t } from '../i18n';
 import type { CannonSkin, EquippedSkins, PlanetSkin, ReticleSkin, TrailSkin } from '../progression/cosmetics';
 import { Background, hexToRgba } from './background';
@@ -33,6 +34,7 @@ export class Renderer {
   private time = 0;
   private offs: (() => void)[] = [];
   private bossIntro = 0;
+  private lightnings: { points: { x: number; y: number }[]; life: number }[] = [];
 
   constructor(
     private readonly canvas: GameCanvas,
@@ -155,6 +157,15 @@ export class Renderer {
         if (type === 'laser') this.fx.addShake(8);
       }),
       ev.on('hint', ({ target, hint }) => this.hints.set(target.id, hint)),
+      ev.on('lightning', ({ points }) => {
+        this.lightnings.push({ points, life: 0.3 });
+        this.fx.flash('#ffd166', 0.12);
+      }),
+      ev.on('splash', ({ kind, x, y, radius }) => {
+        const col = kind === 'frost' ? ['#bfefff', '#7fe3ff', '#ffffff'] : kind === 'missile' ? ['#ff9f43', '#ffd166'] : ['#ff4fd8', '#ffffff'];
+        this.particles.burst(x, y, col, kind === 'frost' ? 'ice' : 'ring', radius * 0.5, 0.8);
+        if (kind === 'shockwave') this.fx.addShake(6);
+      }),
       ev.on('waveStart', ({ wave }) => this.texts.add(t('game.waveStart', { n: wave }), WORLD_W / 2, 260, '#38e8ff', 40, 1.6)),
       ev.on('waveEnd', () => this.texts.add(t('game.waveClear'), WORLD_W / 2, 280, '#5cf2a6', 36, 1.6)),
     );
@@ -167,6 +178,8 @@ export class Renderer {
     this.particles.update(dt);
     this.texts.update(dt);
     this.bossIntro = Math.max(0, this.bossIntro - dt);
+    for (const l of this.lightnings) l.life -= dt;
+    this.lightnings = this.lightnings.filter((l) => l.life > 0);
     return this.fx.update(dt, this.opts.reducedMotion);
   }
 
@@ -288,6 +301,13 @@ export class Renderer {
     c.scale(s, s);
     c.drawImage(sprite, -sprite.width / 2, -sprite.height / 2);
     c.restore();
+    if (this.game.time < a.slowUntil) {
+      c.globalCompositeOperation = 'lighter';
+      c.globalAlpha = 0.5;
+      c.drawImage(glowSprite('#7fe3ff', a.radius + 14), a.x - a.radius - 14, a.y - a.radius - 14);
+      c.globalAlpha = 1;
+      c.globalCompositeOperation = 'source-over';
+    }
     if (a.variant === 'fire') {
       // Traînée de feu
       c.globalCompositeOperation = 'lighter';
@@ -316,7 +336,22 @@ export class Renderer {
 
   private drawBossTarget(c: CanvasRenderingContext2D, bt: BossTarget, boss: BossBase): void {
     const r = bt.radius;
+    const vis = boss.kind === 'phantom' ? (boss as Phantom).visibility(bt) : 1;
+    if (bt.twinId >= 0) {
+      const twin = boss.targets.find((x) => x.id === bt.twinId);
+      if (twin && twin.id > bt.id) {
+        c.strokeStyle = 'rgba(255,209,102,0.5)';
+        c.lineWidth = 3;
+        c.setLineDash([6, 6]);
+        c.beginPath();
+        c.moveTo(bt.x, bt.y);
+        c.lineTo(twin.x, twin.y);
+        c.stroke();
+        c.setLineDash([]);
+      }
+    }
     c.save();
+    c.globalAlpha = boss.kind === 'phantom' ? 0.35 + 0.65 * vis : 1;
     c.translate(bt.x, bt.y);
     c.rotate(this.time * 0.3);
     const grad = c.createRadialGradient(0, 0, r * 0.2, 0, 0, r);
@@ -339,7 +374,13 @@ export class Renderer {
       c.arc(bt.x, bt.y, r + 10, -Math.PI / 2, -Math.PI / 2 + TAU * left);
       c.stroke();
     }
-    this.drawLabel(c, bt, r);
+    if (bt.hidden) outlinedText(c, '?', bt.x, bt.y, clamp(r * 0.8, 24, 40), '#c86bff', '900');
+    else {
+      c.save();
+      c.globalAlpha = boss.kind === 'phantom' ? Math.max(0.15, vis) : 1;
+      this.drawLabel(c, bt, r);
+      c.restore();
+    }
   }
 
   private drawReticle(c: CanvasRenderingContext2D, tg: Target): void {
@@ -541,6 +582,86 @@ export class Renderer {
         c.restore();
         break;
       }
+      case 'swarm': {
+        c.save();
+        c.translate(x, y - 40);
+        const g = c.createRadialGradient(0, 0, 10, 0, 0, 70);
+        g.addColorStop(0, '#ffd166');
+        g.addColorStop(1, '#6b3a0b');
+        c.fillStyle = g;
+        c.beginPath();
+        c.ellipse(0, 0, 70, 36, 0, 0, TAU);
+        c.fill();
+        c.strokeStyle = '#ff9f43';
+        c.lineWidth = 3;
+        for (let i = 0; i < 6; i++) {
+          const a = this.time * 2 + (i / 6) * TAU;
+          c.beginPath();
+          c.moveTo(Math.cos(a) * 30, Math.sin(a) * 16);
+          c.lineTo(Math.cos(a) * 95, Math.sin(a) * 50);
+          c.stroke();
+        }
+        c.restore();
+        for (const tg of boss.targets) {
+          c.fillStyle = '#ff9f43';
+          c.beginPath();
+          c.ellipse(tg.x, tg.y - tg.radius - 8, 14, 5, 0, 0, TAU);
+          c.fill();
+        }
+        break;
+      }
+      case 'phantom': {
+        c.save();
+        c.translate(x, y);
+        const pulse = 0.5 + 0.5 * Math.sin(this.time * 1.5);
+        c.globalAlpha = boss.enterT * (0.35 + pulse * 0.4);
+        const g = c.createRadialGradient(0, -10, 10, 0, 0, 110);
+        g.addColorStop(0, '#d6c8ff');
+        g.addColorStop(0.6, '#6b4bd6');
+        g.addColorStop(1, 'rgba(43,16,85,0)');
+        c.fillStyle = g;
+        c.beginPath();
+        c.moveTo(-90, 40);
+        c.quadraticCurveTo(-100, -90, 0, -90);
+        c.quadraticCurveTo(100, -90, 90, 40);
+        for (let i = 0; i < 5; i++) c.quadraticCurveTo(90 - i * 36 - 18, 40 + (i % 2 === 0 ? 24 : -8) + Math.sin(this.time * 4 + i) * 8, 90 - (i + 1) * 36, 40);
+        c.closePath();
+        c.fill();
+        c.globalAlpha = boss.enterT;
+        c.fillStyle = '#05081a';
+        for (const dx of [-26, 26]) {
+          c.beginPath();
+          c.ellipse(dx, -25, 11, 15 + pulse * 4, 0, 0, TAU);
+          c.fill();
+        }
+        c.restore();
+        break;
+      }
+      case 'twins': {
+        c.save();
+        c.translate(x, y - 30);
+        for (const side of [-1, 1]) {
+          const g = c.createRadialGradient(side * 50 - 10, -10, 8, side * 50, 0, 50);
+          g.addColorStop(0, side < 0 ? '#38e8ff' : '#ff4fd8');
+          g.addColorStop(1, '#0f1a4a');
+          c.fillStyle = g;
+          c.beginPath();
+          c.arc(side * 50, 0, 46, 0, TAU);
+          c.fill();
+          c.fillStyle = '#ffffff';
+          c.beginPath();
+          c.arc(side * 50 - side * 10, -8, 7, 0, TAU);
+          c.fill();
+        }
+        c.strokeStyle = '#ffd166';
+        c.lineWidth = 4;
+        c.beginPath();
+        c.moveTo(-10, 0);
+        c.lineTo(10, 0);
+        c.stroke();
+        c.restore();
+        break;
+      }
       case 'mothership': {
         const ms = boss as Mothership;
         c.save();
@@ -586,7 +707,44 @@ export class Renderer {
   private drawProjectiles(c: CanvasRenderingContext2D): void {
     const skin: TrailSkin = this.skins.trail;
     c.globalCompositeOperation = 'lighter';
+    for (const l of this.lightnings) {
+      const a = l.life / 0.3;
+      c.globalAlpha = a;
+      for (const [w, col] of [[9, 'rgba(255,209,102,0.5)'], [3, '#ffffff']] as const) {
+        c.strokeStyle = col;
+        c.lineWidth = w;
+        c.lineJoin = 'round';
+        c.beginPath();
+        for (let i = 0; i < l.points.length - 1; i++) {
+          const p0 = l.points[i] as { x: number; y: number };
+          const p1 = l.points[i + 1] as { x: number; y: number };
+          if (i === 0) c.moveTo(p0.x, p0.y);
+          const segs = 7;
+          for (let k = 1; k <= segs; k++) {
+            const t = k / segs;
+            const jitter = k === segs ? 0 : (Math.sin(this.time * 90 + k * 13 + i * 7) * 18);
+            c.lineTo(p0.x + (p1.x - p0.x) * t - (p1.y - p0.y) * 0.1 * jitter / 18, p0.y + (p1.y - p0.y) * t + (p1.x - p0.x) * 0.1 * jitter / 18);
+          }
+        }
+        c.stroke();
+      }
+      c.globalAlpha = 1;
+    }
     for (const p of this.game.projectiles) {
+      const pskin = this.skins.projectile;
+      const offsets = p.kind === 'twin' ? [-7, 7] : [0];
+      for (const off of offsets) {
+        c.save();
+        c.translate(off, 0);
+        this.drawOneProjectile(c, p, skin, pskin.color);
+        c.restore();
+      }
+    }
+    c.globalCompositeOperation = 'source-over';
+  }
+
+  private drawOneProjectile(c: CanvasRenderingContext2D, p: Projectile, skin: TrailSkin, headColor: string): void {
+    {
       if (p.trail.length > 1) {
         const first = p.trail[0] as { x: number; y: number };
         const grad = c.createLinearGradient(first.x, first.y, p.x, p.y);
@@ -617,14 +775,41 @@ export class Renderer {
           }
         }
       }
-      const glow = glowSprite(p.fizzle ? '#ff5d73' : skin.color, 22);
-      c.drawImage(glow, p.x - 22, p.y - 22);
+      const glow = glowSprite(p.fizzle ? '#ff5d73' : headColor, p.kind === 'missile' || p.kind === 'shockwave' ? 30 : 22);
+      c.drawImage(glow, p.x - glow.width / 2, p.y - glow.height / 2);
       c.fillStyle = '#ffffff';
-      c.beginPath();
-      c.arc(p.x, p.y, p.fizzle ? 3 : 5, 0, TAU);
-      c.fill();
+      if (p.kind === 'missile') {
+        c.save();
+        c.translate(p.x, p.y);
+        c.rotate(Math.atan2(p.vy, p.vx));
+        c.fillStyle = headColor;
+        c.beginPath();
+        c.moveTo(12, 0);
+        c.lineTo(-8, -5);
+        c.lineTo(-8, 5);
+        c.closePath();
+        c.fill();
+        c.restore();
+      } else if (p.kind === 'frost') {
+        c.save();
+        c.translate(p.x, p.y);
+        c.rotate(this.time * 6);
+        c.strokeStyle = '#ffffff';
+        c.lineWidth = 2;
+        for (let i = 0; i < 3; i++) {
+          c.rotate(Math.PI / 3);
+          c.beginPath();
+          c.moveTo(-8, 0);
+          c.lineTo(8, 0);
+          c.stroke();
+        }
+        c.restore();
+      } else {
+        c.beginPath();
+        c.arc(p.x, p.y, p.fizzle ? 3 : p.kind === 'shockwave' ? 7 : 5, 0, TAU);
+        c.fill();
+      }
     }
-    c.globalCompositeOperation = 'source-over';
   }
 
   private drawFreeze(c: CanvasRenderingContext2D): void {

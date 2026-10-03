@@ -79,6 +79,8 @@ export abstract class BossBase {
       alive: true,
       type: 'boss',
       deadline: opts.deadline ?? 0,
+      hidden: false,
+      twinId: -1,
     };
     return t;
   }

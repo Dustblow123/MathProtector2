@@ -18,7 +18,7 @@ export function renderResults(app: App, { launch, result, outcome }: ResultsPara
 
   const rewards: HTMLElement[] = [];
   if (outcome.levelAfter > outcome.levelBefore) rewards.push(h('div', { class: 'reward' }, h('span', { class: 'icon' }, '🆙'), h('b', null, t('results.levelUp', { n: outcome.levelAfter }))));
-  if (outcome.sectorUnlocked !== null) rewards.push(h('div', { class: 'reward' }, h('span', { class: 'icon' }, '🔓'), h('b', null, t('results.sectorUnlocked', { n: outcome.sectorUnlocked + 1 }))));
+  if (outcome.sectorUnlocked !== null) rewards.push(h('div', { class: 'reward' }, h('span', { class: 'icon' }, '🪐'), h('b', null, t('results.sectorDone', { table: sectorTable(result.sector ?? 0, p.maxTable) }))));
   if (outcome.dailyMedal) rewards.push(h('div', { class: 'reward' }, h('span', { class: 'icon' }, outcome.dailyMedal === 'gold' ? '🥇' : outcome.dailyMedal === 'silver' ? '🥈' : '🥉'), h('b', null, t('results.medal', { medal: t(`medal.${outcome.dailyMedal}` as 'medal.gold') }))));
   for (const id of outcome.newAchievements) {
     const def = ACHIEVEMENTS.find((a) => a.id === id);
@@ -30,13 +30,13 @@ export function renderResults(app: App, { launch, result, outcome }: ResultsPara
   const stars = result.modeId === 'campaign' && result.victory ? h('div', { class: 'stars' }, [1, 2, 3].map((i) => h('span', { class: i <= result.stars ? '' : 'off' }, '★'))) : '';
 
   const actions = h('div', { class: 'row', style: 'justify-content:center' });
-  const nextSector = result.modeId === 'campaign' && result.victory && result.sector !== null ? result.sector + 1 : null;
-  if (nextSector !== null && nextSector < sectorCount(p.maxTable) && p.unlockedSector >= nextSector) {
+  const nextSector = result.modeId === 'campaign' && result.victory && result.sector !== null && app.completedTables().length < sectorCount(p.maxTable) ? app.recommendedSector() : null;
+  if (nextSector !== null && nextSector !== result.sector) {
     actions.appendChild(
       button(`${t('results.nextSector')} →`, () => {
         const sector = nextSector;
-        const mode = campaignMode(sector, { maxTable: p.maxTable, fluentMs: app.fluentMs() });
-        app.go('game', { mode, title: `${t('common.sector', { n: sector + 1 })} · ${t('common.table', { n: sectorTable(sector, p.maxTable) })}`, rebuild: () => campaignMode(sector, { maxTable: p.maxTable, fluentMs: app.fluentMs() }) });
+        const build = () => campaignMode(sector, { maxTable: p.maxTable, fluentMs: app.fluentMs(), reviewTables: app.completedTables() });
+        app.go('game', { mode: build(), title: `${t('common.sector', { n: sector + 1 })} · ${t('common.table', { n: sectorTable(sector, p.maxTable) })}`, rebuild: build });
       }, 'btn btn-primary btn-big'),
     );
   }
@@ -58,6 +58,7 @@ export function renderResults(app: App, { launch, result, outcome }: ResultsPara
           { class: 'stat-grid' },
           stat(result.score.toLocaleString(), t('results.score')),
           stat(String(result.destroyed), t('results.destroyed')),
+          stat(`${result.correct}${result.powerupKills > 0 ? ` (+${result.powerupKills})` : ''}`, t('results.correct')),
           stat(`${Math.round(result.accuracy * 100)} %`, t('results.accuracy')),
           stat(result.avgRt > 0 ? `${(result.avgRt / 1000).toFixed(1)} s` : '—', t('results.avgRt')),
           stat(`×${result.maxCombo}`, t('results.maxCombo')),

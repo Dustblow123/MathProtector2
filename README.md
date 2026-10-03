@@ -3,10 +3,11 @@
 Jeu web d'apprentissage des tables de multiplication : des astéroïdes portant une multiplication foncent vers la Terre, tape la bonne réponse pour les détruire avec le canon.
 
 - **Algorithme d'apprentissage** : modèle par fait (Bayesian Knowledge Tracing + répétition espacée + fluidité), scheduler adaptatif (nouveaux faits / en apprentissage / révisions dues / entretien), réinjection immédiate des erreurs, pratique contrastive sur les confusions (6×7 ↔ 6×8), contrôleur de difficulté visant 80–85 % de réussite.
-- **Modes** : Campagne (10 secteurs, 5 vagues + boss), Survie, Blitz 60 s, Entraînement, Boss Rush, Défi du jour.
-- **Boss** : Titan, Hydre, Miroir (facteur manquant), Chrono, Vaisseau-mère.
-- **Powerups** : Gel temporel, Bouclier, Nova, Laser de table, Score ×2, Oracle.
-- **Progression** : XP et niveaux, étoiles, succès, poussière d'étoiles, Hangar de cosmétiques (canons, traînées, explosions, planètes, nébuleuses, réticules).
+- **Modes** : Campagne (10 secteurs au choix libre, 5 vagues + boss, les tables terminées reviennent en révision), Patrouille (révision automatique des tables terminées), Survie, Blitz 60 s, Entraînement, Boss Rush, Défi du jour.
+- **Boss** : Titan, Essaim (drones qui piquent), Hydre, Jumeaux (commutativité), Miroir (facteur manquant), Fantôme (rappel de mémoire), Chrono, Vaisseau-mère.
+- **Powerups** : Gel temporel, Bouclier, Nova, Laser de table, Score ×2, Oracle. Les destructions par powerup ne comptent pas dans la précision.
+- **Équipement à effet** : six projectiles (trait, missile sinueux, givre, double tir, onde de choc, éclair à rebond) et huit canons avec un bonus chacun (+1 bouclier, projectiles plus rapides, indices plus tôt, plus de cristaux…).
+- **Progression** : XP et niveaux, étoiles, succès, poussière d'étoiles, Hangar de cosmétiques (traînées, explosions, planètes, nébuleuses, réticules).
 - **Multi-profils** + espace parent (grille de maîtrise 10×10, stats, confusions, tables prioritaires, export/import JSON).
 - Interface FR/EN, clavier ou pavé numérique tactile, audio procédural (aucun fichier son), PWA installable.
 

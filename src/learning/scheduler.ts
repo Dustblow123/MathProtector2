@@ -92,9 +92,9 @@ export class Scheduler {
   }
 
   /** Fait "nouveau" suivant selon l'ordre pédagogique (table puis facteur). */
-  private nextNewFact(excludedProducts: ReadonlySet<number>): Fact | null {
+  private nextNewFact(excludedProducts: ReadonlySet<number>, anyActiveTable = false): Fact | null {
     for (const t of tableOrder(this.cfg.maxTable)) {
-      if (!this.cfg.newTables.includes(t)) continue;
+      if (!(anyActiveTable ? this.cfg.activeTables : this.cfg.newTables).includes(t)) continue;
       for (const b of factorOrder(this.cfg.maxTable)) {
         const f = makeFact(t, b);
         const s = this.states.get(f.id);
@@ -171,7 +171,8 @@ export class Scheduler {
       }
       const last = this.history[this.history.length - 1];
       const pool = seen.length > 1 ? seen.filter((f) => f.id !== last) : seen;
-      const fresh = seen.length < 2 ? this.nextNewFact(onScreenProducts) : null;
+      // Dernier recours (ex. mode sans fait nouveau sur une table jamais vue) : on pioche quand même.
+      const fresh = seen.length < 2 ? (this.nextNewFact(onScreenProducts) ?? this.nextNewFact(onScreenProducts, true)) : null;
       const f = fresh ?? (pool.length > 0 ? this.rng.pick(pool) : null);
       if (!f) return null;
       return this.emit(f, this.bucketOf(this.states.get(f.id) as FactState, now));

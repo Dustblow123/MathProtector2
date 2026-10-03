@@ -18,7 +18,8 @@ export function renderGame(app: App, launch: GameLaunch): ScreenResult {
   const settings = app.settings;
   const root = h('div', { class: 'game-root' });
   const canvas = new GameCanvas(root);
-  const game = new Game(launch.mode, factsMap(profile));
+  const skins = app.skins();
+  const game = new Game(launch.mode, factsMap(profile), { projectile: skins.projectile.kind, perk: skins.cannon.perk });
   game.autoFire = settings.autoFire;
   (window as unknown as { mp2game: Game }).mp2game = game;
   const confusions: Record<string, number> = {};
@@ -154,7 +155,7 @@ export function renderGame(app: App, launch: GameLaunch): ScreenResult {
   };
 
   // ---------------------------------------------------------------- rendu & boucle
-  const renderer = new Renderer(canvas, game, app.skins(), {
+  const renderer = new Renderer(canvas, game, skins, {
     reducedMotion: settings.reducedMotion,
     stardustTarget: () => {
       const r = dustEl.getBoundingClientRect();
