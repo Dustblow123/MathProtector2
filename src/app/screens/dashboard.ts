@@ -4,9 +4,9 @@ import { FLUENT_MS, createProfile, factsMap, type AgePreset } from '../../data/p
 import { exportProfile, importProfile } from '../../data/storage';
 import { t } from '../../i18n';
 import { tableOrder, tableStats } from '../../learning/curriculum';
-import { makeFact, parseFactId } from '../../learning/facts';
+import { factEquation, factLabel, makeFact, parseFactId } from '../../learning/facts';
 import { masteryLevel } from '../../learning/model';
-import type { MasteryLevel } from '../../learning/types';
+import type { MasteryLevel, Op } from '../../learning/types';
 import { button, clear, h, modal, toast } from '../../ui/dom';
 import type { App, ScreenResult } from '../App';
 
@@ -16,31 +16,42 @@ export function renderDashboard(app: App): ScreenResult {
   const fluent = app.fluentMs();
   const n = p.maxTable;
 
-  // --- Heatmap
+  // --- Grilles de maîtrise (multiplication / division, états séparés)
+  let gridOp: Op = p.ops === 'div' ? 'div' : 'mul';
   const heat = h('div', { class: 'heatmap', style: `--n:${n}` });
-  heat.appendChild(h('div', { class: 'hd' }, '×'));
-  for (let b = 1; b <= n; b++) heat.appendChild(h('div', { class: 'hd' }, String(b)));
-  const levelName = (m: MasteryLevel) => t(`dash.legend.${m}` as 'dash.legend.0');
-  for (let a = 1; a <= n; a++) {
-    heat.appendChild(h('div', { class: 'hd' }, String(a)));
-    for (let b = 1; b <= n; b++) {
-      const f = makeFact(a, b);
-      const s = facts.get(f.id);
-      const m: MasteryLevel = s ? masteryLevel(s, fluent) : 0;
-      const acc = s && s.reps > 0 ? Math.round(((s.reps - s.lapses) / s.reps) * 100) : 0;
-      const title = s ? t('dash.factDetail', { fact: `${a} × ${b}`, p: f.product, level: levelName(m), acc, rt: s.rtEma ? `${(s.rtEma / 1000).toFixed(1)} s` : '—' }) : `${a} × ${b} = ${f.product}`;
-      heat.appendChild(h('div', { class: `cell m${m}`, title }, String(f.product)));
-    }
-  }
-  const legend = h('div', { class: 'legend' }, [0, 1, 2, 3, 4].map((m) => h('span', null, h('i', { class: `cell m${m}`, style: 'display:inline-block;width:12px;height:12px' }), levelName(m as MasteryLevel))));
-
-  // --- Barres par table
   const bars = h('div', { class: 'table-bars' });
-  for (const tb of tableOrder(n)) {
-    const st = tableStats(facts, tb, n, fluent);
-    const pct = Math.round(st.avgMastery * 25);
-    bars.appendChild(h('div', { class: 'table-bar' }, h('b', null, t('dash.tableShort', { n: tb })), h('div', { class: `progress ${pct >= 90 ? 'gold' : ''}` }, h('i', { style: `width:${pct}%` })), h('span', { class: 'small muted' }, `${pct} %`)));
-  }
+  const opSeg = h('div', { class: 'seg' });
+  const gridHint = h('p', { class: 'small muted', style: 'margin:6px 0 0' });
+  const levelName = (m: MasteryLevel) => t(`dash.legend.${m}` as 'dash.legend.0');
+  const renderGrids = () => {
+    clear(heat);
+    clear(bars);
+    clear(opSeg);
+    for (const o of ['mul', 'div'] as Op[]) {
+      opSeg.appendChild(h('button', { type: 'button', class: o === gridOp ? 'sel' : '', onClick: () => { gridOp = o; renderGrids(); } }, `${o === 'mul' ? '×' : '÷'} ${t(`ops.${o}` as 'ops.mul')}`));
+    }
+    gridHint.textContent = gridOp === 'div' ? t('dash.divGridHint') : '';
+    heat.appendChild(h('div', { class: 'hd' }, gridOp === 'mul' ? '×' : '÷'));
+    for (let b = 1; b <= n; b++) heat.appendChild(h('div', { class: 'hd' }, String(b)));
+    for (let a = 1; a <= n; a++) {
+      heat.appendChild(h('div', { class: 'hd' }, String(a)));
+      for (let b = 1; b <= n; b++) {
+        const f = makeFact(a, b, gridOp);
+        const s = facts.get(f.id);
+        const m: MasteryLevel = s ? masteryLevel(s, fluent) : 0;
+        const acc = s && s.reps > 0 ? Math.round(((s.reps - s.lapses) / s.reps) * 100) : 0;
+        const title = s ? t('dash.factDetail', { fact: factLabel(f), p: f.answer, level: levelName(m), acc, rt: s.rtEma ? `${(s.rtEma / 1000).toFixed(1)} s` : '—' }) : factEquation(f);
+        heat.appendChild(h('div', { class: `cell m${m}`, title }, String(f.product)));
+      }
+    }
+    for (const tb of tableOrder(n)) {
+      const st = tableStats(facts, tb, n, fluent, gridOp);
+      const pct = Math.round(st.avgMastery * 25);
+      bars.appendChild(h('div', { class: 'table-bar' }, h('b', null, `${gridOp === 'div' ? '÷' : '×'} ${tb}`), h('div', { class: `progress ${pct >= 90 ? 'gold' : ''}` }, h('i', { style: `width:${pct}%` })), h('span', { class: 'small muted' }, `${pct} %`)));
+    }
+  };
+  renderGrids();
+  const legend = h('div', { class: 'legend' }, [0, 1, 2, 3, 4].map((m) => h('span', null, h('i', { class: `cell m${m}`, style: 'display:inline-block;width:12px;height:12px' }), levelName(m as MasteryLevel))));
 
   // --- Stats
   const st = p.stats;
@@ -59,6 +70,7 @@ export function renderDashboard(app: App): ScreenResult {
     stat(avgRt > 0 ? `${(avgRt / 1000).toFixed(1)} s` : '—', t('dash.avgRt')),
     stat(String(st.streakDays), t('dash.streak')),
     stat(String(st.helps), t('dash.helps')),
+    stat(String(st.divCorrect), t('dash.divCorrect')),
   );
   const week = h('div', { class: 'row', style: 'gap:6px;align-items:flex-end;height:70px' });
   const maxD = Math.max(1, ...last7.map((d) => d.destroyed));
@@ -66,16 +78,16 @@ export function renderDashboard(app: App): ScreenResult {
 
   // --- Confusions
   const conf = Object.entries(st.confusions).sort((a, b) => b[1] - a[1]).slice(0, 8);
-  const kindLabel: Record<string, string> = { 'neighbor-b': '±1 (b)', 'neighbor-a': '±1 (a)', addition: '+', 'digit-swap': '⇄', 'other-table': '≠', 'off-by-table': '±' };
+  const kindLabel: Record<string, string> = { 'neighbor-b': '±1 (b)', 'neighbor-a': '±1 (a)', addition: '+', 'digit-swap': '⇄', 'other-table': '≠', 'off-by-table': '±', 'divisor-echo': '= ÷' };
   const confList = conf.length === 0 ? h('p', { class: 'muted small' }, t('dash.noConfusions')) : h('div', { class: 'fact-chips' }, conf.map(([k, v]) => {
     const [id, kind] = k.split('>');
     const f = parseFactId(id ?? '1x1');
-    return h('span', { class: 'fact-chip', title: kind }, t('dash.confusionRow', { fact: `${f.a} × ${f.b}`, answer: kindLabel[kind ?? ''] ?? kind ?? '?', n: v }));
+    return h('span', { class: 'fact-chip', title: kind }, t('dash.confusionRow', { fact: factLabel(f), answer: kindLabel[kind ?? ''] ?? kind ?? '?', n: v }));
   }));
 
   // --- Faits fragiles
   const weakest = [...facts.values()].filter((s) => s.reps > 0).sort((a, b) => a.pKnown - b.pKnown).slice(0, 8);
-  const weakList = h('div', { class: 'fact-chips' }, weakest.map((s) => { const f = parseFactId(s.id); return h('span', { class: 'fact-chip' }, `${f.a} × ${f.b} = ${f.product}`); }));
+  const weakList = h('div', { class: 'fact-chips' }, weakest.map((s) => { const f = parseFactId(s.id); return h('span', { class: 'fact-chip' }, factEquation(f)); }));
 
   // --- Focus tables
   const focusChips = h('div', { class: 'chips' });
@@ -157,7 +169,7 @@ export function renderDashboard(app: App): ScreenResult {
       h(
         'div',
         { class: 'dash-grid' },
-        h('div', { class: 'panel' }, h('h3', null, t('dash.heatmap')), h('div', { style: 'margin:10px 0' }, heat), legend),
+        h('div', { class: 'panel' }, h('h3', null, t('dash.heatmap')), h('div', { style: 'margin-top:10px' }, opSeg), gridHint, h('div', { style: 'margin:10px 0' }, heat), legend),
         h('div', { class: 'panel' }, h('h3', null, t('dash.tables')), h('div', { style: 'margin-top:10px' }, bars)),
         h('div', { class: 'panel' }, h('h3', null, t('dash.stats')), h('div', { style: 'margin-top:10px' }, statGrid), h('h3', { style: 'margin-top:14px' }, t('dash.last7')), week),
         h('div', { class: 'panel' }, h('h3', null, t('dash.confusions')), h('div', { style: 'margin:10px 0 14px' }, confList), h('h3', null, t('dash.weakest')), h('div', { style: 'margin-top:10px' }, weakList)),

@@ -25,11 +25,11 @@ class Speech {
   }
 
   fact(f: Fact): void {
-    this.speak(t('speech.times', { a: f.a, b: f.b }));
+    this.speak(f.op === 'div' ? t('speech.divides', { p: f.product, a: f.a }) : t('speech.times', { a: f.a, b: f.b }));
   }
 
   answer(f: Fact): void {
-    this.speak(t('speech.equals', { a: f.a, b: f.b, p: f.product }));
+    this.speak(f.op === 'div' ? t('speech.divEquals', { p: f.product, a: f.a, b: f.b }) : t('speech.equals', { a: f.a, b: f.b, p: f.product }));
   }
 
   cancel(): void {

@@ -1,4 +1,5 @@
 import { audio } from '../../audio/AudioManager';
+import { ACHIEVEMENTS } from '../../progression/achievements';
 import { dateKey, dueTables, reviewMode } from '../../game/modes/index';
 import { factsMap } from '../../data/profile';
 import { dueFacts } from '../../learning/review';
@@ -16,7 +17,10 @@ export function renderMenu(app: App): ScreenResult {
   const reviewLabel = due.length === 0 ? t('menu.review.none') : reviewDone ? t('menu.review.done', { n: due.length }) : t('menu.review.due', { n: due.length });
   const startReview = () => {
     const ids = due.slice(0, 20).map((d) => d.id);
-    const build = () => reviewMode(ids, { maxTable: p.maxTable, fluentMs: app.fluentMs(), tables: dueTables(due) });
+    const hasDiv = ids.some((id) => id.includes('d'));
+    const hasMul = ids.some((id) => !id.includes('d'));
+    const ops = hasDiv && hasMul ? 'mixed' : hasDiv ? 'div' : 'mul';
+    const build = () => reviewMode(ids, { maxTable: p.maxTable, fluentMs: app.fluentMs(), tables: dueTables(due), ops });
     app.go('game', { mode: build(), title: t('menu.review'), rebuild: build });
   };
 
@@ -50,7 +54,7 @@ export function renderMenu(app: App): ScreenResult {
         card('🔁', t('menu.review'), reviewLabel, () => { if (due.length > 0) startReview(); }, due.length > 0 && !reviewDone ? 'review-due' : ''),
         card('🎮', t('menu.modes'), dailyDone ? t('menu.dailyDone', { medal: t(`medal.${p.daily?.medal ?? 'bronze'}` as 'medal.gold') }) : `${t('menu.modes.desc')} · ${t('menu.dailyReady')}`, () => app.go('modes', undefined), 'accent'),
         card('🛠️', t('menu.hangar'), t('menu.hangar.desc'), () => app.go('hangar', undefined)),
-        card('🏅', t('menu.achievements'), t('achievements.progress', { n: p.achievements.length, total: 25 }), () => app.go('achievements', undefined)),
+        card('🏅', t('menu.achievements'), t('achievements.progress', { n: p.achievements.length, total: ACHIEVEMENTS.length }), () => app.go('achievements', undefined)),
         card('📊', t('menu.dashboard'), t('dash.subtitle', { name: p.name }), () => app.go('dashboard', undefined)),
         card('⚙️', t('menu.settings'), '', () => app.go('settings', undefined)),
       ),

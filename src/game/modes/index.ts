@@ -1,4 +1,5 @@
 import { seedFromString } from '../../core/rng';
+import type { OpChoice } from '../../learning/types';
 export { dueTables } from '../../learning/review';
 import { tableOrder } from '../../learning/curriculum';
 import type { BossKind, ModeConfig, ModeId } from '../types';
@@ -9,6 +10,8 @@ export interface ModeInput {
   /** Tables débloquées (campagne) ou choisies (autres modes). */
   tables: number[];
   seed?: number;
+  /** Multiplications (défaut), divisions à résultat entier, ou les deux. */
+  ops?: OpChoice;
 }
 
 /** Boss associé à chaque secteur de campagne (index dans l'ordre pédagogique). */
@@ -49,6 +52,7 @@ function base(id: ModeId, input: ModeInput): ModeConfig {
     maxNewPerWave: 3,
     priorityFacts: [],
     waveEvents: true,
+    ops: input.ops ?? 'mul',
   };
 }
 
@@ -155,7 +159,7 @@ export function weekKey(d = new Date()): string {
 
 /** Défi hebdomadaire : 2 vagues + 1 boss tiré de la seed parmi les boss déjà vaincus, une tentative par semaine. */
 export function weeklyMode(key: string, bossesDefeated: BossKind[], input: ModeInput): ModeConfig {
-  const seed = seedFromString(key);
+  const seed = seedFromString(input.ops && input.ops !== 'mul' ? `${key}:${input.ops}` : key);
   const m = base('weekly', { ...input, seed });
   m.wavesTotal = 2;
   m.asteroidsPerWave = 15;
@@ -173,7 +177,7 @@ export function weeklyMode(key: string, bossesDefeated: BossKind[], input: ModeI
 }
 
 export function dailyMode(dateKey: string, input: ModeInput): ModeConfig {
-  const m = base('daily', { ...input, seed: seedFromString(dateKey) });
+  const m = base('daily', { ...input, seed: seedFromString(input.ops && input.ops !== 'mul' ? `${dateKey}:${input.ops}` : dateKey) });
   m.wavesTotal = 1;
   m.asteroidsPerWave = 20;
   m.earthHp = 3;

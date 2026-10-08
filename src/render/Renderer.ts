@@ -15,6 +15,8 @@ import { ScreenEffects } from './effects';
 import { ParticleSystem } from './particles';
 import { asteroidSprite, glowSprite } from './sprites';
 import { FloatingTexts, outlinedText } from './text';
+import { factEquation } from '../learning/facts';
+import { confusionMessage } from '../ui/errorText';
 
 export interface RendererOptions {
   reducedMotion: boolean;
@@ -82,7 +84,7 @@ export class Renderer {
         this.particles.burst(target.x, target.y, sk().explosion.palette, sk().explosion.style, r, byPowerup ? 0.6 : 1);
         this.fx.addShake(byPowerup ? 2 : Math.min(8, r * 0.12));
         const f = target.fact;
-        const eq = target.type === 'boss' && target.label.includes('?') ? `${f.a} × ${f.b} = ${f.product}` : `${target.label} = ${target.answer}`;
+        const eq = target.label.includes('?') ? factEquation(f) : `${target.label} = ${target.answer}`;
         this.texts.add(`${this.opts.colorblind ? '✓ ' : ''}${eq}`, target.x, target.y - r - 6, byPowerup ? '#ffd166' : fluent ? this.okColor : '#eaf2ff', 24, 1.5);
         if (score > 0 && !byPowerup) this.texts.add(`+${score}`, target.x, target.y + 10, '#ffd166', 20, 1);
       }),
@@ -102,11 +104,7 @@ export class Renderer {
         if (!target) return;
         this.fx.addShake(4);
         if (answer >= 0) this.texts.add(t('game.wrongWas', { answer }), target.x, target.y - target.radius - 6, this.koColor, 24, 1.3);
-        const a = report?.analysis;
-        let extra = '';
-        if (a?.kind === 'addition') extra = t('game.addition', { answer, a: target.fact.a, b: target.fact.b });
-        else if (a?.kind === 'digit-swap') extra = t('game.digitSwap', { product: target.fact.product });
-        else if (a?.confusedWith) extra = t('game.confusedWith', { answer, fact: `${a.confusedWith.a} × ${a.confusedWith.b}` });
+        const extra = confusionMessage(target.fact, report?.analysis, answer);
         if (extra) this.texts.add(extra, target.x, target.y + target.radius + 22, '#ff9f43', 18, 2.4, false);
       }),
       ev.on('combo', ({ combo, milestone }) => {
@@ -335,7 +333,9 @@ export class Renderer {
   }
 
   private drawLabel(c: CanvasRenderingContext2D, tg: Target, radius: number): void {
-    const size = clamp(radius * 0.62, 20, 34) * (this.opts.largeText ? 1.25 : 1);
+    // Libellés longs (« 100 ÷ 10 », « 7 × ? = 56 ») : police réduite pour tenir dans la cible.
+    const fit = Math.min(1, 6.5 / Math.max(1, tg.label.length));
+    const size = Math.max(16, clamp(radius * 0.62, 20, 34) * fit) * (this.opts.largeText ? 1.25 : 1);
     const isAimed = this.game.cannon.targetId === tg.id && this.game.buffer.length > 0;
     if (this.opts.highContrast) {
       c.fillStyle = 'rgba(5,8,26,0.75)';

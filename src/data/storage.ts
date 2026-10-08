@@ -2,7 +2,7 @@ import type { Lang } from '../i18n';
 import { AVATARS, createProfile, type Profile } from './profile';
 
 export const STORAGE_KEY = 'mp2:save';
-export const SAVE_VERSION = 2;
+export const SAVE_VERSION = 3;
 
 export interface Settings {
   lang: Lang | null;
@@ -55,7 +55,9 @@ export function migrate(raw: unknown): SaveData {
   out.settings = { ...DEFAULT_SETTINGS, ...(data.settings ?? {}) };
   out.activeProfileId = data.activeProfileId ?? null;
   out.profiles = Array.isArray(data.profiles) ? data.profiles.map(normalizeProfile) : [];
-  // v1 → v2 : nouveaux champs de profil (weekly, reviewDoneDay, autoFluent, stats.recentRts…) ajoutés par normalizeProfile.
+  // v1 → v2 : weekly, reviewDoneDay, autoFluent, stats.recentRts… ; v2 → v3 : ops, stats.divCorrect.
+  // Les champs manquants sont posés par normalizeProfile ; les états de faits existants (ids "7x8") sont intacts,
+  // les divisions utilisent de nouveaux ids "7d8" créés à la demande.
   out.version = SAVE_VERSION;
   return out;
 }

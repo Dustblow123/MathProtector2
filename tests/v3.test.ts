@@ -165,7 +165,7 @@ describe('événements et défi hebdo', () => {
 
 describe('mini-drill et migration', () => {
   it('choisit au plus 5 faits : ratés puis voisins, sans produit répété d\'affilée', () => {
-    const base = { modeId: 'campaign', sector: 0, score: 0, destroyed: 0, correct: 0, powerupKills: 0, answered: 0, errors: 0, hitsTaken: 0, accuracy: 1, avgRt: 0, fluentRatio: 0, maxCombo: 0, stardust: 0, xp: 0, stars: 0, victory: true, bossesDefeated: [], durationMs: 0, wavesCleared: 0, factOutcomes: [], newlyMastered: [], perfect: false, aborted: false, correctRts: [], reviewed: 0, helps: 0 } as Omit<SessionResult, 'weakFacts'>;
+    const base = { modeId: 'campaign', sector: 0, score: 0, destroyed: 0, correct: 0, powerupKills: 0, answered: 0, errors: 0, hitsTaken: 0, accuracy: 1, avgRt: 0, fluentRatio: 0, maxCombo: 0, stardust: 0, xp: 0, stars: 0, victory: true, bossesDefeated: [], durationMs: 0, wavesCleared: 0, factOutcomes: [], newlyMastered: [], perfect: false, aborted: false, correctRts: [], reviewed: 0, helps: 0, ops: 'mul', divCorrect: 0 } as Omit<SessionResult, 'weakFacts'>;
     const facts = pickDrillFacts({ ...base, weakFacts: ['7x8', '6x7'] }, 10);
     expect(facts.length).toBe(5);
     expect(facts.slice(0, 2).map((f) => f.id)).toEqual(['7x8', '6x7']);
@@ -173,10 +173,11 @@ describe('mini-drill et migration', () => {
     expect(pickDrillFacts({ ...base, weakFacts: [] }, 10)).toEqual([]);
   });
 
-  it('migre une sauvegarde v1 vers v2 avec les nouveaux champs', () => {
+  it('migre une sauvegarde v1 vers la version courante avec les nouveaux champs', () => {
     const m = migrate({ version: 1, profiles: [{ name: 'Léa', stats: { sessions: 3, destroyed: 10 } }], settings: { autoFire: false } });
     const p = m.profiles[0]!;
-    expect(m.version).toBe(2);
+    expect(m.version).toBe(3);
+    expect(p.ops).toBe('mul');
     expect(p.autoFluent).toBe(true);
     expect(p.weekly).toBeNull();
     expect(p.stats.recentRts).toEqual([]);

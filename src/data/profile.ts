@@ -1,5 +1,5 @@
 import type { BossKind } from '../game/types';
-import type { FactId, FactState } from '../learning/types';
+import type { FactId, FactState, OpChoice } from '../learning/types';
 import type { CosmeticCategory } from '../progression/cosmetics';
 import { DEFAULT_EQUIPPED } from '../progression/cosmetics';
 
@@ -49,6 +49,8 @@ export interface Profile {
   reviewDoneDay: string;
   /** Seuil de fluidité calibré automatiquement sur les temps de réponse réels. */
   autoFluent: boolean;
+  /** Dernier choix du sélecteur de lancement : multiplications, divisions (résultats entiers) ou les deux. */
+  ops: OpChoice;
   /** Tables choisies par le parent comme prioritaires (vide = automatique). */
   focusTables: number[];
   stats: {
@@ -74,6 +76,8 @@ export interface Profile {
     drillAnswers: number;
     /** Cartes de méthode consultées. */
     helps: number;
+    /** Divisions réussies (hors powerups). */
+    divCorrect: number;
   };
 }
 
@@ -103,8 +107,9 @@ export function createProfile(name: string, avatar: string, agePreset: AgePreset
     weekly: null,
     reviewDoneDay: '',
     autoFluent: true,
+    ops: 'mul',
     focusTables: [],
-    stats: { sessions: 0, destroyed: 0, correct: 0, fluent: 0, errors: 0, timeMs: 0, lastPlayedDay: '', streakDays: 0, confusions: {}, days: [], recentRts: [], reviewSessions: 0, reviewStreak: 0, lastReviewDay: '', drillAnswers: 0, helps: 0 },
+    stats: { sessions: 0, destroyed: 0, correct: 0, fluent: 0, errors: 0, timeMs: 0, lastPlayedDay: '', streakDays: 0, confusions: {}, days: [], recentRts: [], reviewSessions: 0, reviewStreak: 0, lastReviewDay: '', drillAnswers: 0, helps: 0, divCorrect: 0 },
   };
 }
 

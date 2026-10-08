@@ -1,4 +1,5 @@
 import { makeFact } from '../../learning/facts';
+import type { Fact } from '../../learning/types';
 import { BossBase } from './BossBase';
 import type { BossKind, BossTarget } from '../types';
 
@@ -22,13 +23,17 @@ export class Twins extends BossBase {
   private spawnPairs(): void {
     const used = new Set<number>();
     for (let k = 0; k < this.pairsPerPhase; k++) {
+      // Paires commutées : 7 × 8 / 8 × 7, ou 56 ÷ 7 / 56 ÷ 8. Réponses distinctes d'une paire à l'autre.
+      const clash = (x: Fact) => x.a === x.b || used.has(x.answer) || used.has(makeFact(x.b, x.a, x.op).answer);
       let f = this.pickFact();
-      for (let i = 0; i < 10 && (f.a === f.b || used.has(f.product)); i++) f = this.pickFact();
-      if (f.a === f.b) f = makeFact(f.a, f.a === this.game.mode.maxTable ? f.a - 1 : f.a + 1);
-      used.add(f.product);
+      for (let i = 0; i < 10 && clash(f); i++) f = this.pickFact();
+      if (f.a === f.b) f = makeFact(f.a, f.a === this.game.mode.maxTable ? f.a - 1 : f.a + 1, f.op);
+      const twin = makeFact(f.b, f.a, f.op);
+      used.add(f.answer);
+      used.add(twin.answer);
       const dx = -250 + k * 250;
       const a = this.makeTarget(f, dx, 20, 38);
-      const b = this.makeTarget(makeFact(f.b, f.a), dx + 40, 110, 38);
+      const b = this.makeTarget(twin, dx + 40, 110, 38);
       a.twinId = b.id;
       b.twinId = a.id;
       this.targets.push(a, b);

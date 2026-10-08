@@ -5,6 +5,7 @@ import type { BossKind, ModeConfig } from '../../game/types';
 import { t } from '../../i18n';
 import { tableOrder } from '../../learning/curriculum';
 import { button, clear, h, toast } from '../../ui/dom';
+import { createOpsPicker, opsTitleSuffix } from '../../ui/opsPicker';
 import type { App, ScreenResult } from '../App';
 
 export function renderModes(app: App): ScreenResult {
@@ -27,14 +28,14 @@ export function renderModes(app: App): ScreenResult {
   renderChips();
 
   const tables = () => [...selected].sort((a, b) => a - b);
-  const input = () => ({ maxTable: p.maxTable, fluentMs: app.fluentMs(), tables: tables() });
+  const input = () => ({ maxTable: p.maxTable, fluentMs: app.fluentMs(), tables: tables(), ops: p.ops });
   const launch = (title: string, build: () => ModeConfig) => {
     if (tables().length === 0) {
       toast(t('modes.needTable'));
       return;
     }
     audio.click();
-    app.go('game', { mode: build(), title, rebuild: build });
+    app.go('game', { mode: build(), title: `${title}${opsTitleSuffix(p.ops)}`, rebuild: build });
   };
 
   const card = (icon: string, title: string, desc: string, best: string, action: HTMLElement) =>
@@ -61,7 +62,7 @@ export function renderModes(app: App): ScreenResult {
       'div',
       { class: 'screen-inner' },
       h('div', { class: 'topbar' }, button(`← ${t('common.back')}`, () => app.go('menu', undefined), 'btn btn-ghost'), h('h2', null, t('modes.title'))),
-      h('div', { class: 'panel' }, h('h3', null, t('modes.chooseTables')), h('div', { style: 'margin-top:10px' }, chips)),
+      h('div', { class: 'panel' }, h('div', { class: 'row ops-row' }, h('h3', null, t('ops.title')), createOpsPicker(p.ops, (v) => { p.ops = v; app.persist(); })), h('p', { class: 'small muted', style: 'margin:6px 0 0' }, t('ops.hint')), h('h3', { style: 'margin-top:14px' }, t('modes.chooseTables')), h('div', { style: 'margin-top:10px' }, chips)),
       h(
         'div',
         { class: 'grid' },
@@ -71,7 +72,7 @@ export function renderModes(app: App): ScreenResult {
           completed.length > 0 ? `${t('modes.patrol.desc')} (${completed.slice().sort((a, b) => a - b).join(', ')})` : t('modes.patrol.locked'),
           p.bestPatrol.score > 0 ? t('modes.bestSurvival', { score: p.bestPatrol.score, waves: p.bestPatrol.waves }) : '',
           completed.length > 0
-            ? button(t('common.play'), () => { audio.click(); const build = () => patrolMode({ maxTable: p.maxTable, fluentMs: app.fluentMs(), tables: completed }); app.go('game', { mode: build(), title: t('modes.patrol'), rebuild: build }); }, 'btn btn-accent')
+            ? button(t('common.play'), () => { audio.click(); const build = () => patrolMode({ maxTable: p.maxTable, fluentMs: app.fluentMs(), tables: completed, ops: p.ops }); app.go('game', { mode: build(), title: `${t('modes.patrol')}${opsTitleSuffix(p.ops)}`, rebuild: build }); }, 'btn btn-accent')
             : button(t('common.locked'), () => undefined, 'btn'),
         ),
         card('♾️', t('modes.survival'), t('modes.survival.desc'), p.bestSurvival.score > 0 ? t('modes.bestSurvival', { score: p.bestSurvival.score, waves: p.bestSurvival.waves }) : '', button(t('common.play'), () => launch(t('modes.survival'), () => survivalMode(input())), 'btn btn-primary')),

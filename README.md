@@ -3,6 +3,7 @@
 Jeu web d'apprentissage des tables de multiplication : des astéroïdes portant une multiplication foncent vers la Terre, tape la bonne réponse pour les détruire avec le canon.
 
 - **Algorithme d'apprentissage** : modèle par fait (Bayesian Knowledge Tracing + répétition espacée + fluidité), scheduler adaptatif (nouveaux faits / en apprentissage / révisions dues / entretien), réinjection immédiate des erreurs, pratique contrastive sur les confusions (6×7 ↔ 6×8), contrôleur de difficulté visant 80–85 % de réussite.
+- **Divisions** (sélecteur × / ÷ / les deux au lancement d'une partie, sur la carte de campagne et l'écran des modes) : chaque division est une multiplication lue à l'envers (56 ÷ 7 = 8 vient de 7 × 8), donc **le résultat est toujours entier**, sans reste. La maîtrise des divisions est suivie séparément de celle des multiplications (deux grilles dans l'espace parent, révision du jour pour chaque sens, seuil de rapidité ×1,25). Les cartes de méthode, le mini-drill, les boss et la voix s'adaptent (Miroir : « ? ÷ 7 = 8 »).
 - **Modes** : Campagne (10 secteurs au choix libre, 5 vagues + boss, les tables terminées reviennent en révision), Patrouille (révision automatique des tables terminées), Survie, Blitz 60 s, Entraînement, Boss Rush, Défi du jour.
 - **Boss** : Titan, Essaim (drones qui piquent), Hydre, Jumeaux (commutativité), Miroir (facteur manquant), Fantôme (rappel de mémoire), Chrono, Vaisseau-mère.
 - **Powerups** : Gel temporel, Bouclier, Nova, Laser de table, Score ×2, Oracle. Les destructions par powerup ne comptent pas dans la précision.
@@ -39,6 +40,7 @@ node e2e/v2.mjs /tmp/shots       # campagne libre, projectiles, patrouille, hang
 node e2e/v3.mjs /tmp/shots       # révision du jour, mini-drill, défi hebdo, accessibilité
 node e2e/mobile3.mjs /tmp/shots  # HUD portrait et paysage
 node e2e/help.mjs /tmp/shots     # carte de méthode : gel, coût, fermeture automatique
+node e2e/division.mjs /tmp/shots # divisions : sélecteur, parties ÷ et mixte, drill, deux grilles parent
 ```
 
 ## Commandes en jeu

@@ -1,5 +1,5 @@
 import { makeFact } from './facts';
-import type { Fact, FactId, FactState } from './types';
+import type { Fact, FactId, FactState, Op } from './types';
 
 export type StrategyKind =
   | 'identity'
@@ -19,7 +19,7 @@ export type StrategyKind =
 
 /** Étape affichée : clé i18n + paramètres numériques (le module reste pur, sans dépendance à l'interface). */
 export interface StrategyStep {
-  key: 'times' | 'plus' | 'minus' | 'half' | 'zero' | 'identity' | 'commute';
+  key: 'times' | 'plus' | 'minus' | 'half' | 'zero' | 'identity' | 'commute' | 'divide' | 'divAnswer';
   params: Record<string, number>;
 }
 
@@ -29,6 +29,8 @@ export interface StrategyPart {
 }
 
 export interface Strategy {
+  /** Opération du fait : une division s'appuie sur la méthode de la multiplication jumelle. */
+  op: Op;
   kind: StrategyKind;
   /** Orientation utilisée : `a` rangées de `b` (le produit est celui du fait d'origine). */
   a: number;
@@ -51,14 +53,32 @@ function simplicity(n: number): number {
 
 const KNOWN = 0.85;
 
-/** Choisit la méthode de calcul la plus utile pour un fait, en tenant compte des faits voisins déjà connus. */
+type MulStrategy = Omit<Strategy, 'op'>;
+
+/**
+ * Choisit la méthode de calcul la plus utile pour un fait, en tenant compte des faits voisins déjà connus.
+ * Pour une division « p ÷ a = b » : on pense « a × ? = p », avec la méthode de la multiplication a × b.
+ */
 export function chooseStrategy(fact: Fact, states: ReadonlyMap<FactId, FactState> = new Map(), _maxTable = 10): Strategy {
+  const mul = chooseMulStrategy(makeFact(fact.a, fact.b), states);
+  if (fact.op !== 'div') return { ...mul, op: 'mul' };
+  // « 3 ÷ 1 » : inutile de retourner 1 × 3 en 3 × 1, on garde seulement l'identité.
+  const inner = mul.kind === 'identity' ? mul.steps.filter((s) => s.key !== 'commute') : mul.steps;
+  return {
+    ...mul,
+    op: 'div',
+    steps: [{ key: 'divide', params: { p: fact.product, a: fact.a, b: fact.b } }, ...inner, { key: 'divAnswer', params: { p: fact.product, a: fact.a, b: fact.b } }],
+  };
+}
+
+function chooseMulStrategy(fact: Fact, states: ReadonlyMap<FactId, FactState>): MulStrategy {
   const known = (x: number, y: number) => (states.get(makeFact(x, y).id)?.pKnown ?? 0) >= KNOWN;
 
   // 1. Voisin bien connu dans l'une ou l'autre orientation : méthode la plus rapide pour l'enfant.
   const orientations: [number, number, boolean][] = fact.a === fact.b ? [[fact.a, fact.b, false]] : [[fact.a, fact.b, false], [fact.b, fact.a, true]];
   for (const [oa, ob, flipped] of orientations) {
-    if (ob <= 2 || ob === 10) continue;
+    // Pas de méthode « voisin » pour les cas triviaux (×1, ×2, ×10 dans l'un ou l'autre sens).
+    if (ob <= 2 || ob === 10 || oa <= 2 || oa === 10) continue;
     const pre: StrategyStep[] = flipped ? [{ key: 'commute', params: { a: fact.a, b: fact.b } }] : [];
     const p = oa * ob;
     if (known(oa, ob - 1)) {
@@ -82,7 +102,7 @@ export function chooseStrategy(fact: Fact, states: ReadonlyMap<FactId, FactState
   const steps: StrategyStep[] = [];
   if (commuted) steps.push({ key: 'commute', params: { a: fact.a, b: fact.b } });
 
-  const make = (kind: StrategyKind, more: StrategyStep[], parts: StrategyPart[]): Strategy => ({ kind, a, b, product: p, commuted, steps: [...steps, ...more], parts });
+  const make = (kind: StrategyKind, more: StrategyStep[], parts: StrategyPart[]): MulStrategy => ({ kind, a, b, product: p, commuted, steps: [...steps, ...more], parts });
   switch (b) {
     case 1:
       return make('identity', [{ key: 'identity', params: { x: a } }], [{ cols: 1, color: 'main' }]);

@@ -1,4 +1,4 @@
-import type { Fact, FactId } from '../learning/types';
+import type { Fact, FactId, OpChoice } from '../learning/types';
 
 export type AsteroidVariant = 'normal' | 'fire' | 'ice' | 'crystal' | 'split';
 
@@ -121,6 +121,8 @@ export interface ModeConfig {
   sector: number | null;
   /** Nombre maximum de faits nouveaux par vague. */
   maxNewPerWave: number;
+  /** Opérations proposées : multiplication, division (résultats entiers) ou les deux. */
+  ops: OpChoice;
   /** Faits servis en priorité (révision du jour). */
   priorityFacts: string[];
   /** Événements de vague aléatoires autorisés. */
@@ -172,5 +174,9 @@ export interface SessionResult {
   reviewed: number;
   /** Cartes de méthode consultées. */
   helps: number;
+  /** Opérations de la partie. */
+  ops: OpChoice;
+  /** Divisions réussies par le joueur (hors powerups). */
+  divCorrect: number;
 }
 

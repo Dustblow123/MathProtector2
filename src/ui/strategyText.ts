@@ -3,6 +3,7 @@ import type { Strategy, StrategyStep } from '../learning/strategies';
 
 /** Titre de la méthode (clé i18n par type de stratégie). */
 export function strategyTitle(s: Strategy): string {
+  if (s.op === 'div') return t('strategy.divide');
   return t(`strategy.${s.kind}` as 'strategy.identity');
 }
 

@@ -1,6 +1,6 @@
-import { factsOfTable } from './facts';
+import { factsOfTable, opsOf } from './facts';
 import { masteryLevel } from './model';
-import type { FactId, FactState } from './types';
+import type { FactId, FactState, OpChoice } from './types';
 
 /** Ordre pédagogique d'introduction des tables : faciles d'abord, 6/7/8/9 en dernier. */
 export const TABLE_ORDER: readonly number[] = [1, 2, 10, 5, 3, 4, 6, 7, 8, 9, 11, 12];
@@ -29,8 +29,9 @@ export function tableStats(
   table: number,
   maxTable: number,
   fluentMs: number,
+  op: OpChoice = 'mul',
 ): TableStats {
-  const facts = factsOfTable(table, maxTable);
+  const facts = opsOf(op).flatMap((o) => factsOfTable(table, maxTable, o));
   let sumP = 0;
   let fluent = 0;
   let seen = 0;

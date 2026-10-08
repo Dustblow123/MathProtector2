@@ -288,7 +288,7 @@ export function renderGame(app: App, launch: GameLaunch): ScreenResult {
       h(
         'div',
         { class: 'panel help-card' },
-        h('div', { class: 'help-head' }, h('span', { class: 'tag tag-gold' }, `${target.fact.a} × ${target.fact.b}`), h('h2', null, strategyTitle(strategy)), ring),
+        h('div', { class: 'help-head' }, h('span', { class: 'tag tag-gold' }, target.label), h('h2', null, strategyTitle(strategy)), ring),
         h('div', { class: 'help-steps' }, lines.map((l, i) => h('div', { class: 'help-step', style: `animation-delay:${i * 0.25}s` }, l))),
         cv,
         button(t('help.gotIt'), () => game.closeHelp(), 'btn btn-primary btn-big'),
@@ -320,7 +320,11 @@ export function renderGame(app: App, launch: GameLaunch): ScreenResult {
   let ended = false;
   function togglePause(): void {
     if (ended || game.phase === 'intro') return;
-    if (game.phase === 'help') game.closeHelp();
+    // Échap ferme d'abord la carte de méthode, sans ouvrir la pause.
+    if (game.phase === 'help') {
+      game.closeHelp();
+      return;
+    }
     if (game.phase === 'paused') {
       game.resume();
       pauseOverlay?.remove();
@@ -360,7 +364,7 @@ export function renderGame(app: App, launch: GameLaunch): ScreenResult {
   }
 
   const onVisibility = () => {
-    if (document.hidden && game.phase !== 'paused' && !ended) togglePause();
+    if (document.hidden && game.phase !== 'paused' && game.phase !== 'help' && !ended) togglePause();
   };
   document.addEventListener('visibilitychange', onVisibility);
 

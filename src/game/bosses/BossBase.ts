@@ -1,5 +1,6 @@
 import type { Game } from '../Game';
 import type { BossKind, BossTarget } from '../types';
+import { factLabel, mirrorOf } from '../../learning/facts';
 import type { Fact } from '../../learning/types';
 
 /**
@@ -70,8 +71,8 @@ export abstract class BossBase {
     const t: BossTarget = {
       id: this.game.nextId(),
       fact,
-      answer: mirror ? fact.b : fact.product,
-      label: mirror ? `${fact.a} × ? = ${fact.product}` : `${fact.a} × ${fact.b}`,
+      answer: mirror ? mirrorOf(fact).answer : fact.answer,
+      label: mirror ? mirrorOf(fact).label : factLabel(fact),
       x: this.x + dx,
       y: this.y + dy,
       dx,

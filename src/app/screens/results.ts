@@ -2,7 +2,8 @@ import { audio } from '../../audio/AudioManager';
 import { campaignMode, sectorCount, sectorTable } from '../../game/modes/index';
 import { levelFromXp } from '../../game/scoring';
 import { t } from '../../i18n';
-import { parseFactId } from '../../learning/facts';
+import { factEquation, parseFactId } from '../../learning/facts';
+import { opsTitleSuffix } from '../../ui/opsPicker';
 import { ACHIEVEMENTS } from '../../progression/achievements';
 import { button, h } from '../../ui/dom';
 import type { App, ResultsParams, ScreenResult } from '../App';
@@ -12,10 +13,7 @@ export function renderResults(app: App, params: ResultsParams): ScreenResult {
   const p = app.p;
   const title = result.aborted ? t('results.aborted') : result.victory ? (launch.mode.timeLimitMs > 0 ? t('results.timeUp') : t('results.victory')) : t('results.defeat');
   const lvl = levelFromXp(p.xp);
-  const fmtFact = (id: string) => {
-    const f = parseFactId(id);
-    return `${f.a} × ${f.b} = ${f.product}`;
-  };
+  const fmtFact = (id: string) => factEquation(parseFactId(id));
 
   const rewards: HTMLElement[] = [];
   if (outcome.levelAfter > outcome.levelBefore) rewards.push(h('div', { class: 'reward' }, h('span', { class: 'icon' }, '🆙'), h('b', null, t('results.levelUp', { n: outcome.levelAfter }))));
@@ -40,8 +38,8 @@ export function renderResults(app: App, params: ResultsParams): ScreenResult {
     actions.appendChild(
       button(`${t('results.nextSector')} →`, () => {
         const sector = nextSector;
-        const build = () => campaignMode(sector, { maxTable: p.maxTable, fluentMs: app.fluentMs(), reviewTables: app.completedTables() });
-        app.go('game', { mode: build(), title: `${t('common.sector', { n: sector + 1 })} · ${t('common.table', { n: sectorTable(sector, p.maxTable) })}`, rebuild: build });
+        const build = () => campaignMode(sector, { maxTable: p.maxTable, fluentMs: app.fluentMs(), reviewTables: app.completedTables(), ops: p.ops });
+        app.go('game', { mode: build(), title: `${t('common.sector', { n: sector + 1 })} · ${t('common.table', { n: sectorTable(sector, p.maxTable) })}${opsTitleSuffix(p.ops)}`, rebuild: build });
       }, 'btn btn-primary btn-big'),
     );
   }

@@ -38,12 +38,16 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   { id: 'review_streak_5', icon: '📆', reward: 150 },
   { id: 'weekly_gold', icon: '🥇', reward: 200 },
   { id: 'event_boss', icon: '🎁', reward: 80 },
+  { id: 'div_first', icon: '➗', reward: 50 },
+  { id: 'div_master', icon: '🧮', reward: 150 },
 ];
 
 export interface AchievementContext {
   result: SessionResult;
-  totals: { destroyed: number; fluent: number; sessions: number; streakDays: number; reviewSessions: number; reviewStreak: number };
+  totals: { destroyed: number; fluent: number; sessions: number; streakDays: number; reviewSessions: number; reviewStreak: number; divCorrect: number };
   masteredTables: number[];
+  /** Tables maîtrisées en division (état d'apprentissage séparé de la multiplication). */
+  divMasteredTables: number[];
   allTablesMastered: boolean;
   bossesEverDefeated: string[];
   cosmeticsOwned: number;
@@ -79,6 +83,8 @@ export function evaluateAchievements(ctx: AchievementContext, already: ReadonlyS
   add('all_bosses', ['titan', 'swarm', 'hydra', 'twins', 'mirror', 'phantom', 'chrono', 'mothership'].every((b) => ctx.bossesEverDefeated.includes(b)));
   add('collector', ctx.cosmeticsOwned >= 15);
   add('night_owl', ctx.hour >= 21 || ctx.hour < 6);
+  add('div_first', ctx.totals.divCorrect >= 1);
+  add('div_master', ctx.divMasteredTables.length > 0);
   add('review_5', ctx.totals.reviewSessions >= 5);
   add('review_streak_5', ctx.totals.reviewStreak >= 5);
   add('weekly_gold', r.modeId === 'weekly' && r.accuracy >= 0.95 && r.hitsTaken === 0 && r.victory);

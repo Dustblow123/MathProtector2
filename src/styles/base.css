@@ -292,17 +292,18 @@ html[data-large="1"] .hud-score { font-size: clamp(22px, 3.4vw, 32px); }
 .hud-mini { display: none; }
 @media (max-width: 600px) and (orientation: portrait) {
   .hud { padding: max(6px, env(safe-area-inset-top)) 8px max(8px, env(safe-area-inset-bottom)); }
-  .hud-top { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 6px; }
+  /* Deux rangées : score + vague, puis boucliers / aide / pause / poussière (le bouton « ? » ne tenait plus sur une seule). */
+  .hud-top { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 6px; }
   .hud-box { padding: 5px 8px; border-radius: 10px; }
   .hud-score { font-size: 18px; }
   .hud-label { font-size: 9px; }
   .hud-combo { font-size: 13px; }
   .hud-wave .progress { width: 100%; margin-top: 4px; }
   .hearts { font-size: 15px; gap: 2px; }
-  .hud-right { flex-direction: row; align-items: center; gap: 6px; }
-  .hud-right .row { gap: 6px; }
+  .hud-right { grid-column: 1 / -1; flex-direction: row; align-items: center; justify-content: space-between; gap: 6px; }
+  .hud-right .row { gap: 6px; flex: 1; justify-content: space-between; flex-wrap: nowrap; }
   .btn-icon.pause-btn { width: 38px; min-height: 38px; }
-  .boss-bar { top: 64px; width: 88vw; }
+  .boss-bar { top: 108px; width: 88vw; }
   .boss-bar .name { font-size: 12px; }
   .hud-bottom { flex-direction: column; align-items: stretch; gap: 8px; }
   .powerups { justify-content: center; }
@@ -342,3 +343,8 @@ html[data-large="1"] .hud-score { font-size: clamp(22px, 3.4vw, 32px); }
 .drill-steps { display: flex; flex-direction: column; gap: 4px; font-size: 26px; font-weight: 900; color: #fff; }
 html[data-large="1"] .help-step { font-size: clamp(32px, 6vw, 48px); }
 @media (max-width: 600px) and (orientation: portrait) { .help-step { font-size: 26px; } .help-card { padding: 14px; } }
+
+/* ----- v5 : sélecteur d'opérations */
+.ops-row { justify-content: space-between; gap: 10px; }
+.ops-picker button { white-space: nowrap; }
+@media (max-width: 600px) { .ops-picker { width: 100%; } .ops-picker button { flex: 1; padding: 10px 6px; font-size: 14px; } }

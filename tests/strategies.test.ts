@@ -50,6 +50,10 @@ describe('chooseStrategy', () => {
     // jamais de voisin pour ×1, ×2, ×10 (déjà triviaux)
     const triv = new Map<FactId, FactState>([['7x3', { ...initialFactState(makeFact(7, 3)), pKnown: 0.95, reps: 5 }]]);
     expect(chooseStrategy(makeFact(7, 2), triv).kind).toBe('double');
+    // Pas de méthode « voisin » pour un cas trivial, même si le voisin est connu (7 × 1 = 1 × 7 avec 1 × 6 connu).
+    const one = new Map<FactId, FactState>([['1x6', { ...initialFactState(makeFact(1, 6)), pKnown: 0.95, reps: 5 }]]);
+    expect(chooseStrategy(makeFact(7, 1), one).kind).toBe('identity');
+    expect(chooseStrategy(makeFact(1, 7), one).kind).toBe('identity');
   });
 
   it('les clés i18n des stratégies existent en français et en anglais', () => {

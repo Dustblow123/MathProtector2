@@ -1,12 +1,24 @@
-/** Identifiant d'un fait ordonné, ex. "7x8". Le fait appartient à la table du premier facteur. */
+/**
+ * Identifiant d'un fait ordonné : "7x8" (multiplication 7 × 8) ou "7d8" (division 56 ÷ 7 = 8).
+ * Le fait appartient à la table de `a`. Les deux opérations ont chacune leur état d'apprentissage.
+ */
 export type FactId = string;
+
+/** Opération d'un fait : multiplication, ou division dont le résultat est toujours entier (p ÷ a = b). */
+export type Op = 'mul' | 'div';
+
+/** Choix au lancement d'une partie. */
+export type OpChoice = Op | 'mixed';
 
 export interface Fact {
   id: FactId;
+  op: Op;
   a: number;
   b: number;
   product: number;
-  /** Table à laquelle appartient le fait (= a). */
+  /** Ce qu'il faut taper : le produit (mul) ou le quotient `b` (div). */
+  answer: number;
+  /** Table à laquelle appartient le fait (= a, le diviseur en division). */
   table: number;
 }
 
@@ -43,6 +55,7 @@ export type ErrorKind =
   | 'digit-swap' // 42 ↔ 24
   | 'other-table' // produit d'un autre fait de la plage
   | 'off-by-table' // a×b ± a ou ± b (saut de table)
+  | 'divisor-echo' // division : l'enfant tape le diviseur (56 ÷ 7 → 7)
   | 'unknown';
 
 export interface ErrorAnalysis {

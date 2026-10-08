@@ -5,8 +5,9 @@ import { factsMap, storeFacts } from '../../data/profile';
 import type { SessionResult } from '../../game/types';
 import { t } from '../../i18n';
 import { classifyError } from '../../learning/confusions';
-import { commuted, parseFactId } from '../../learning/facts';
-import { recordAnswer, recordCommutedCredit } from '../../learning/model';
+import { confusionMessage } from '../../ui/errorText';
+import { commuted, factEquation, factLabel, makeFact, parseFactId, twinOp } from '../../learning/facts';
+import { recordAnswer, recordCommutedCredit, recordCrossCredit } from '../../learning/model';
 import type { Fact } from '../../learning/types';
 import { chooseStrategy } from '../../learning/strategies';
 import { drawStrategyVisual } from '../../render/strategyVisual';
@@ -29,13 +30,13 @@ export function pickDrillFacts(result: SessionResult, maxTable: number): Fact[] 
   for (const id of result.weakFacts) push(parseFactId(id));
   for (const id of result.weakFacts) {
     const f = parseFactId(id);
-    if (f.b < maxTable) push(parseFactId(`${f.a}x${f.b + 1}`));
-    if (f.b > 1) push(parseFactId(`${f.a}x${f.b - 1}`));
+    if (f.b < maxTable) push(makeFact(f.a, f.b + 1, f.op));
+    if (f.b > 1) push(makeFact(f.a, f.b - 1, f.op));
   }
   // Évite deux produits identiques consécutifs.
   for (let i = 1; i < out.length; i++) {
-    if (out[i]!.product === out[i - 1]!.product) {
-      const j = out.findIndex((f, k) => k > i && f.product !== out[i - 1]!.product);
+    if (out[i]!.answer === out[i - 1]!.answer) {
+      const j = out.findIndex((f, k) => k > i && f.answer !== out[i - 1]!.answer);
       if (j > 0) [out[i], out[j]] = [out[j]!, out[i]!];
     }
   }
@@ -112,7 +113,7 @@ export function renderDrill(app: App, params: ResultsParams): ScreenResult {
     feedback.className = 'drill-feedback';
     hintCanvas.style.display = 'none';
     clear(stepsEl);
-    question.textContent = `${f.a} × ${f.b} = ?`;
+    question.textContent = `${factLabel(f)} = ?`;
     progress.textContent = `${index + 1} / ${queue.length}`;
     shownAt = performance.now();
     speech.fact(f);
@@ -128,24 +129,23 @@ export function renderDrill(app: App, params: ResultsParams): ScreenResult {
     const f = queue[index]!;
     locked = true;
     const rt = performance.now() - shownAt;
-    const correct = value === f.product;
+    const correct = value === f.answer;
     const prev = facts.get(f.id) ?? recordAnswer({ id: f.id, pKnown: 0.3, stability: 0.5, lastReview: 0, reps: 0, lapses: 0, rtEma: 0, recent: [], streak: 0 }, { correct, rt, now: Date.now(), fluentMs });
     facts.set(f.id, facts.has(f.id) ? recordAnswer(prev, { correct, rt, now: Date.now(), fluentMs }) : prev);
     const c = commuted(f);
     const cs = facts.get(c.id);
     if (cs && c.id !== f.id) facts.set(c.id, recordCommutedCredit(cs, correct));
+    const tw = twinOp(f);
+    const ts = facts.get(tw.id);
+    if (ts && ts.reps > 0) facts.set(tw.id, recordCrossCredit(ts, correct));
     if (correct) {
       correctCount++;
-      feedback.textContent = `✓ ${f.a} × ${f.b} = ${f.product}`;
+      feedback.textContent = `✓ ${factEquation(f)}`;
       feedback.className = 'drill-feedback good';
       audio.laser();
     } else {
-      const a = classifyError(f, value, p.maxTable);
-      let extra = '';
-      if (a.kind === 'addition') extra = t('game.addition', { answer: value, a: f.a, b: f.b });
-      else if (a.kind === 'digit-swap') extra = t('game.digitSwap', { product: f.product });
-      else if (a.confusedWith) extra = t('game.confusedWith', { answer: value, fact: `${a.confusedWith.a} × ${a.confusedWith.b}` });
-      feedback.textContent = `✗ ${value} — ${f.a} × ${f.b} = ${f.product}${extra ? ` · ${extra}` : ''}`;
+      const extra = confusionMessage(f, classifyError(f, value, p.maxTable), value);
+      feedback.textContent = `✗ ${value} — ${factEquation(f)}${extra ? ` · ${extra}` : ''}`;
       feedback.className = 'drill-feedback bad';
       audio.miss();
       speech.answer(f);

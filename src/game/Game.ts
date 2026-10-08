@@ -4,8 +4,8 @@ import { clamp, dist } from '../core/math';
 import { Rng } from '../core/rng';
 import { FlowController } from '../learning/flow';
 import { chooseStrategy, type Strategy } from '../learning/strategies';
-import { makeFact } from '../learning/facts';
-import { masteryLevel } from '../learning/model';
+import { factLabel, makeFact, mirrorOf, opsOf } from '../learning/facts';
+import { fluentFor, masteryLevel } from '../learning/model';
 import { Scheduler, type ResultReport } from '../learning/scheduler';
 import type { Fact, FactId, FactState } from '../learning/types';
 import type { BossBase } from './bosses/BossBase';
@@ -122,7 +122,7 @@ export class Game {
   private idCounter = 1;
   private introTimer = 1500;
 
-  private stats = { destroyed: 0, answered: 0, errors: 0, hits: 0, fluent: 0, rtSum: 0, waves: 0, powerupKills: 0, reviewed: 0, helps: 0 };
+  private stats = { destroyed: 0, answered: 0, errors: 0, hits: 0, fluent: 0, rtSum: 0, waves: 0, powerupKills: 0, reviewed: 0, helps: 0, divCorrect: 0 };
   private correctRts: number[] = [];
   private readonly prioritySet: Set<FactId>;
   /** Événement de la vague courante, null sinon. */
@@ -147,10 +147,13 @@ export class Game {
         maxNewPerWave: mode.maxNewPerWave,
         reinjectErrors: mode.reinjectErrors,
         priorityFacts: mode.priorityFacts,
+        ops: mode.ops,
       },
       this.rng,
     );
-    this.flow = new FlowController({ fluentMs: mode.fluentMs, initial: mode.flow.initial, min: mode.flow.min, max: mode.flow.max });
+    // La division démarre 15 % plus calme : le contrôleur de difficulté ajuste ensuite.
+    const calm = opsOf(mode.ops).includes('div') ? 0.85 : 1;
+    this.flow = new FlowController({ fluentMs: mode.fluentMs, initial: mode.flow.initial * calm, min: mode.flow.min, max: mode.flow.max });
     this.earth.maxHp = (mode.earthHp || 5) + (loadout.perk === 'extraHp' && mode.earthHp > 0 ? 1 : 0);
     this.earth.hp = this.earth.maxHp;
     this.earth.invulnerable = mode.earthHp === 0;
@@ -543,18 +546,19 @@ export class Game {
     for (let i = 0; i < 12; i++) {
       const f = this.scheduler.pickNext(mirror ? new Set() : visible, this.wallClock);
       if (!f) break;
-      const answer = mirror ? f.b : f.product;
+      const answer = mirror ? mirrorOf(f).answer : f.answer;
       const sameTable = f.a === table || f.b === table;
       if (!visible.has(answer) && (sameTable || i >= 6)) return f;
     }
     // Repli : un fait de la table non visible.
     const order = this.rng.shuffle(Array.from({ length: this.mode.maxTable }, (_, i) => i + 1));
+    const op = this.rng.pick(opsOf(this.mode.ops));
     for (const b of order) {
-      const f = makeFact(table, b);
-      const answer = mirror ? f.b : f.product;
+      const f = makeFact(table, b, op);
+      const answer = mirror ? mirrorOf(f).answer : f.answer;
       if (!visible.has(answer)) return f;
     }
-    return makeFact(table, 1);
+    return makeFact(table, 1, op);
   }
 
   spawnAsteroid(opts: SpawnOptions = {}): Asteroid | null {
@@ -573,8 +577,8 @@ export class Game {
     const a: Asteroid = {
       id: this.nextId(),
       fact,
-      answer: fact.product,
-      label: `${fact.a} × ${fact.b}`,
+      answer: fact.answer,
+      label: factLabel(fact),
       x,
       y,
       radius,
@@ -752,15 +756,18 @@ export class Game {
   private resolveHit(t: Target): void {
     if (!t.alive) return;
     // Cible aidée : jamais « fluide », pas de bonus de vitesse (demi-preuve pour le modèle).
-    const rt = t.helped ? Math.max(this.responseTime(t), this.mode.fluentMs + 1) : this.responseTime(t);
-    const fluent = rt <= this.mode.fluentMs;
+    const fluentMs = fluentFor(this.mode.fluentMs, t.fact.op);
+    const rt = t.helped ? Math.max(this.responseTime(t), fluentMs + 1) : this.responseTime(t);
+    const fluent = rt <= fluentMs;
     const report = this.scheduler.reportResult(t.fact, true, rt, this.wallClock);
     this.flow.recordOutcome(true, rt);
     this.recordOutcome(t.fact.id, true, rt);
     this.stats.answered++;
     this.stats.rtSum += rt;
     if (fluent) this.stats.fluent++;
-    if (!t.helped) this.correctRts.push(Math.round(rt));
+    // Temps normalisé par opération (la division est plus lente) pour ne pas fausser le calibrage.
+    if (!t.helped) this.correctRts.push(Math.round(rt / fluentFor(1, t.fact.op)));
+    if (t.fact.op === 'div') this.stats.divCorrect++;
     if (this.prioritySet.has(t.fact.id)) {
       this.stats.reviewed++;
       this.prioritySet.delete(t.fact.id);
@@ -774,7 +781,7 @@ export class Game {
       this.gainPowerup(this.randomPowerup());
     }
     this.events.emit('combo', { combo: this.combo, milestone });
-    const score = scoreFor(rt, this.mode.fluentMs * (this.loadout.perk === 'wideFluent' ? 1.25 : 1), this.combo, this.doubleActive, this.mode.scoreMult);
+    const score = scoreFor(rt, fluentMs * (this.loadout.perk === 'wideFluent' ? 1.25 : 1), this.combo, this.doubleActive, this.mode.scoreMult);
     this.destroyTarget(t, false, score, fluent, report);
     if (this.mode.timeBonusMs > 0) this.timeLeft += this.mode.timeBonusMs;
     if (this.focusOverride === t.id) this.focusOverride = null;
@@ -811,12 +818,12 @@ export class Game {
   private splitAsteroid(a: Asteroid): void {
     const f = a.fact;
     const facts: Fact[] = [];
-    if (f.b > 1) facts.push(makeFact(f.a, f.b - 1));
-    if (f.b < this.mode.maxTable) facts.push(makeFact(f.a, f.b + 1));
+    if (f.b > 1) facts.push(makeFact(f.a, f.b - 1, f.op));
+    if (f.b < this.mode.maxTable) facts.push(makeFact(f.a, f.b + 1, f.op));
     const visible = this.onScreenAnswers;
     const children: Asteroid[] = [];
     let i = 0;
-    for (const cf of facts.filter((x) => !visible.has(x.product)).slice(0, 2)) {
+    for (const cf of facts.filter((x) => !visible.has(x.answer)).slice(0, 2)) {
       const c = this.spawnAsteroid({ fact: cf, fromX: a.x + (i === 0 ? -40 : 40), fromY: a.y, generation: 1, speedMul: 0.8 });
       if (c) {
         c.vx = i === 0 ? -35 : 35;
@@ -1058,6 +1065,8 @@ export class Game {
       correctRts: [...this.correctRts],
       reviewed: s.reviewed,
       helps: s.helps,
+      ops: this.mode.ops,
+      divCorrect: s.divCorrect,
     };
   }
 }

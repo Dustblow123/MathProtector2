@@ -27,18 +27,18 @@ export class Hydra extends BossBase {
     if (g < this.maxGen) {
       const visible = this.game.onScreenAnswers;
       const f = t.fact;
-      const candidates = [makeFact(f.a, Math.max(1, f.b - 1)), makeFact(f.a, Math.min(this.game.mode.maxTable, f.b + 1))];
+      const candidates = [makeFact(f.a, Math.max(1, f.b - 1), f.op), makeFact(f.a, Math.min(this.game.mode.maxTable, f.b + 1), f.op)];
       let placed = 0;
       for (const cf of candidates) {
         let fact = cf;
-        if (visible.has(fact.product) || fact.id === f.id) fact = this.pickFact();
-        if (visible.has(fact.product)) continue;
+        if (visible.has(fact.answer) || fact.id === f.id) fact = this.pickFact();
+        if (visible.has(fact.answer)) continue;
         const dx = Math.max(-320, Math.min(320, t.dx + (placed === 0 ? -70 : 70) + this.game.rng.range(-20, 20)));
         const dy = Math.min(140, t.dy + 45 + g * 10);
         const nt = this.makeTarget(fact, dx, dy, Math.max(26, t.radius - 6));
         this.gen.set(nt.id, g + 1);
         this.targets.push(nt);
-        visible.add(fact.product);
+        visible.add(fact.answer);
         placed++;
       }
       this.phase = Math.min(this.phases, g + 2);

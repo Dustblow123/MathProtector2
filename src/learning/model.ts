@@ -1,4 +1,5 @@
-import type { Fact, FactState, MasteryLevel } from './types';
+import { opOfId } from './facts';
+import type { Fact, FactState, MasteryLevel, Op } from './types';
 
 /** Paramètres BKT. "guess" est bas car la réponse est saisie (pas un QCM). */
 export const BKT = {
@@ -9,8 +10,24 @@ export const BKT = {
 
 export const DAY_MS = 86_400_000;
 
+/** La division est plus lente à calculer : seuil de fluidité × 1,25. */
+export const DIV_FLUENT_FACTOR = 1.25;
+
+/**
+ * Seuil de fluidité pour une opération. Toutes les fonctions du modèle reçoivent le seuil de BASE
+ * et l'adaptent elles-mêmes à l'opération de l'identifiant du fait.
+ */
+export function fluentFor(base: number, op: Op): number {
+  return op === 'div' ? base * DIV_FLUENT_FACTOR : base;
+}
+
 /** A priori de connaissance selon la table : certaines tables sont (presque) acquises d'emblée. */
 export function priorForFact(fact: Fact): number {
+  const p = mulPrior(fact);
+  return fact.op === 'div' ? p * 0.8 : p;
+}
+
+function mulPrior(fact: Fact): number {
   const easy = (n: number) => n === 1 || n === 2 || n === 10 || n === 5;
   if (fact.a === 1 || fact.b === 1) return 0.6;
   if (fact.a === 10 || fact.b === 10) return 0.5;
@@ -74,7 +91,8 @@ export interface AnswerInput {
  *   et davantage si la réponse est fluide ; elle chute fortement sur une erreur.
  */
 export function recordAnswer(state: FactState, input: AnswerInput): FactState {
-  const { correct, rt, now, fluentMs } = input;
+  const { correct, rt, now } = input;
+  const fluentMs = fluentFor(input.fluentMs, opOfId(state.id));
   const fluent = correct && rt <= fluentMs;
   const r = retrievability(state, now);
 
@@ -113,7 +131,14 @@ export function recordCommutedCredit(state: FactState, correct: boolean): FactSt
   return { ...state, pKnown: bktUpdate(state.pKnown, true, BKT.transit * 0.5) };
 }
 
-export function masteryLevel(state: FactState, fluentMs: number): MasteryLevel {
+/** Petit crédit apporté par la réussite du jumeau d'une autre opération (7 × 8 réussi aide 56 ÷ 7). */
+export function recordCrossCredit(state: FactState, correct: boolean): FactState {
+  if (!correct) return state;
+  return { ...state, pKnown: bktUpdate(state.pKnown, true, BKT.transit * 0.35) };
+}
+
+export function masteryLevel(state: FactState, baseFluentMs: number): MasteryLevel {
+  const fluentMs = fluentFor(baseFluentMs, opOfId(state.id));
   if (state.reps === 0) return 0;
   const lastFive = state.recent.slice(-5);
   const allRecentCorrect = lastFive.length >= 5 && lastFive.every((r) => r.correct);
@@ -123,12 +148,13 @@ export function masteryLevel(state: FactState, fluentMs: number): MasteryLevel {
   return 1;
 }
 
-export function isFluent(state: FactState, fluentMs: number): boolean {
-  return masteryLevel(state, fluentMs) === 4;
+export function isFluent(state: FactState, baseFluentMs: number): boolean {
+  return masteryLevel(state, baseFluentMs) === 4;
 }
 
 /** Score 0..1 combinant connaissance et vitesse, pour les barres de progression. */
-export function masteryScore(state: FactState, fluentMs: number): number {
+export function masteryScore(state: FactState, baseFluentMs: number): number {
+  const fluentMs = fluentFor(baseFluentMs, opOfId(state.id));
   if (state.reps === 0) return 0;
   const speed = state.rtEma === 0 ? 0.5 : Math.min(1, fluentMs / Math.max(state.rtEma, 1));
   return clamp01(state.pKnown * (0.6 + 0.4 * speed));

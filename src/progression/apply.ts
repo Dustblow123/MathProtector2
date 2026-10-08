@@ -97,6 +97,7 @@ export function applySession(p: Profile, result: SessionResult, facts: Map<FactI
   for (const [k, v] of Object.entries(confusions)) st.confusions[k] = (st.confusions[k] ?? 0) + v;
   st.recentRts = pushRts(st.recentRts, result.correctRts);
   st.helps += result.helps;
+  st.divCorrect += result.divCorrect;
   if (result.modeId === 'review' && result.reviewed > 0) {
     st.reviewSessions++;
     if (st.lastReviewDay !== today) {
@@ -114,8 +115,9 @@ export function applySession(p: Profile, result: SessionResult, facts: Map<FactI
   const newAchievements = evaluateAchievements(
     {
       result,
-      totals: { destroyed: st.destroyed, fluent: st.fluent, sessions: st.sessions, streakDays: st.streakDays, reviewSessions: st.reviewSessions, reviewStreak: st.reviewStreak },
+      totals: { destroyed: st.destroyed, fluent: st.fluent, sessions: st.sessions, streakDays: st.streakDays, reviewSessions: st.reviewSessions, reviewStreak: st.reviewStreak, divCorrect: st.divCorrect },
       masteredTables: mastered,
+      divMasteredTables: result.divCorrect > 0 || st.divCorrect > 0 ? masteredTables(p, 'div') : [],
       allTablesMastered: tableOrder(p.maxTable).every((t) => mastered.includes(t)),
       bossesEverDefeated: p.bossesDefeated,
       cosmeticsOwned: p.cosmeticsOwned.length,

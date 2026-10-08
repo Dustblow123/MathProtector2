@@ -11,10 +11,10 @@ export interface UnlockStatus {
   rule: UnlockRule;
 }
 
-export function masteredTables(p: Profile): number[] {
+export function masteredTables(p: Profile, op: 'mul' | 'div' = 'mul'): number[] {
   const facts = factsMap(p);
   const fluent = FLUENT_MS[p.agePreset];
-  return tableOrder(p.maxTable).filter((t) => isTableValidated(tableStats(facts, t, p.maxTable, fluent)));
+  return tableOrder(p.maxTable).filter((t) => isTableValidated(tableStats(facts, t, p.maxTable, fluent, op)));
 }
 
 export function cosmeticStatus(p: Profile, item: CosmeticItem, mastered: number[] = masteredTables(p)): UnlockStatus {
