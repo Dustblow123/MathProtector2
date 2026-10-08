@@ -11,7 +11,7 @@ import type { Fact, FactId, FactState } from '../learning/types';
 import type { BossBase } from './bosses/BossBase';
 import { createBoss } from './bosses/index';
 import { COMBO_MILESTONES, INVENTORY_SIZE, POWERUPS, POWERUP_TYPES } from './powerups';
-import { scoreFor, stardustFor, xpFor } from './scoring';
+import { StardustPurse, scoreFor, stardustFor, xpFor } from './scoring';
 import {
   DEFAULT_LOADOUT,
   type Asteroid,
@@ -106,7 +106,9 @@ export class Game {
   score = 0;
   combo = 0;
   maxCombo = 0;
+  /** Poussière d'étoiles créditée (entière, après application du taux). */
   stardust = 0;
+  private readonly purse = new StardustPurse();
   inventory: PowerupType[] = [];
   effects = { freezeUntil: 0, doubleUntil: 0, oracleUntil: 0 };
 
@@ -896,10 +898,13 @@ export class Game {
     }
   }
 
+  /** `n` est la poussière brute ; le taux (STARDUST_RATE) est appliqué par la bourse, le reste est reporté. */
   private addStardust(n: number, x: number, y: number): void {
     if (this.activeEvent === 'doubleDust') n *= 2;
-    this.stardust += n;
-    this.events.emit('stardust', { amount: n, x, y });
+    const whole = this.purse.add(n);
+    if (whole <= 0) return;
+    this.stardust = this.purse.total;
+    this.events.emit('stardust', { amount: whole, x, y });
   }
 
   private recordOutcome(id: FactId, correct: boolean, rt: number): void {

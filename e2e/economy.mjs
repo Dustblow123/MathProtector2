@@ -1,0 +1,43 @@
+import { chromium } from '@playwright/test';
+const out = process.argv[2] ?? '/tmp/shots';
+const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
+const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+const errors = [];
+page.on('pageerror', (e) => errors.push('PAGEERROR ' + e.message));
+page.on('console', (m) => { if (m.type() === 'error') errors.push('console: ' + m.text()); });
+await page.goto('http://localhost:4173/');
+await page.waitForTimeout(400);
+await page.click('.profile-card');
+await page.fill('.modal input[type=text]', 'Eco');
+await page.click('.modal .btn-primary');
+await page.waitForTimeout(300);
+await page.evaluate(() => { const a = window.mp2; a.p.stats.sessions = 1; a.settings.lang = 'fr'; a.persist(true); location.reload(); });
+await page.waitForTimeout(600);
+await page.click('.menu-card.big');
+await page.click('.sector:nth-child(1)');
+await page.waitForTimeout(3500);
+const hud = [];
+let answered = 0;
+for (let i = 0; i < 24 && answered < 12; i++) {
+  const st = await page.evaluate(() => { const g = window.mp2game; const f = g.focus; return { dust: g.stardust, hud: document.querySelector('.hud-stardust')?.textContent, a: f && g.projectiles.length === 0 ? f.answer : null }; });
+  hud.push(st.hud);
+  if (st.a !== null) { await page.keyboard.type(String(st.a)); await page.keyboard.press('Enter'); answered++; }
+  await page.waitForTimeout(700);
+}
+console.log('answered', answered, 'HUD dust over time', JSON.stringify(hud));
+const dust = await page.evaluate(() => window.mp2game.stardust);
+console.log('dust after', answered, 'kills =', dust, '(avant la modification : environ', Math.round(answered * 1.8), ')');
+await page.keyboard.press('Escape');
+await page.click('.overlay .btn-ghost');
+await page.click('.modal .btn-danger');
+await page.waitForTimeout(600);
+await page.screenshot({ path: `${out}/95-results-economy.png`, fullPage: true });
+console.log('reward tags', await page.$$eval('.reward .tag-gold', (e) => e.map((x) => x.textContent)));
+console.log('profile stardust', await page.evaluate(() => window.mp2.p.stardust));
+await page.click('.btn-ghost.btn-big');
+await page.click('.menu-card:has-text("Succès")');
+await page.waitForTimeout(400);
+await page.screenshot({ path: `${out}/96-achievements-economy.png`, fullPage: true });
+console.log('first rewards on achievements page', await page.$$eval('.reward-tag', (e) => e.slice(0, 6).map((x) => x.textContent)));
+console.log(JSON.stringify(errors));
+await browser.close();

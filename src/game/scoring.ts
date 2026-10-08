@@ -17,6 +17,33 @@ export function scoreFor(rt: number, fluentMs: number, combo: number, double: bo
   return Math.round(s / 5) * 5;
 }
 
+/**
+ * Part de la poussière « brute » réellement créditée. 0,5 = la poussière d'étoiles se gagne
+ * deux fois plus lentement (les prix du Hangar et les valeurs brutes ci-dessous ne changent pas).
+ */
+export const STARDUST_RATE = 0.5;
+
+/**
+ * Bourse de poussière d'étoiles : applique le taux et reporte le reste fractionnaire,
+ * pour que rien ne se perde (1 brut → 0, puis 1 au coup suivant, avec un taux de 0,5).
+ */
+export class StardustPurse {
+  total = 0;
+  private carry = 0;
+
+  constructor(private readonly rate: number = STARDUST_RATE) {}
+
+  /** Ajoute de la poussière brute ; renvoie la part entière créditée. */
+  add(raw: number): number {
+    if (raw <= 0) return 0;
+    this.carry += raw * this.rate;
+    const whole = Math.floor(this.carry);
+    this.carry -= whole;
+    this.total += whole;
+    return whole;
+  }
+}
+
 export function stardustFor(fluent: boolean, variant: string): number {
   let n = 1;
   if (fluent) n += 1;
